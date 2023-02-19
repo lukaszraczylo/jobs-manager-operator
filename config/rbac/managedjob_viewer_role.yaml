@@ -1,0 +1,27 @@
+# permissions for end users to view managedjobs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: managedjob-viewer-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: jobs-manager-operator
+    app.kubernetes.io/part-of: jobs-manager-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: managedjob-viewer-role
+rules:
+- apiGroups:
+  - jobsmanager.raczylo.com
+  resources:
+  - managedjobs
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - jobsmanager.raczylo.com
+  resources:
+  - managedjobs/status
+  verbs:
+  - get

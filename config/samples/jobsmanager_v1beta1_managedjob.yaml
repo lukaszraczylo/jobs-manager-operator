@@ -1,0 +1,60 @@
+apiVersion: jobsmanager.raczylo.com/v1beta1
+kind: ManagedJob
+metadata:
+  labels:
+    app.kubernetes.io/name: managedjob
+    app.kubernetes.io/instance: managedjob-sample
+    app.kubernetes.io/part-of: jobs-manager-operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: jobs-manager-operator
+  name: managedjob-sample
+spec:
+  retries: 3
+  params:
+    env:
+      - name: "FOO"
+        value: "bar"
+      - name: "QUE"
+        value: "pasa"
+
+  # Job groups definitions
+  groups:
+    - name: "first-group"
+      parallel: true
+      params:
+        env:
+          - name: "FEE"
+            value: "bee"
+      jobs:
+        - name: "first-job"
+          image: "busybox"
+          args:
+            - "echo"
+            - "Hello world!"
+          params:
+            env:
+              - name: "POO"
+                value: "paz"
+
+        - name: "second-job"
+          image: "busybox"
+          args:
+            - "sleep"
+            - "10"
+
+    - name: "second-group"
+      parallel: true
+      jobs:
+        - name: "third-job"
+          image: "busybox"
+          args:
+            - "echo"
+            - "Hello world!"
+          parallel: true
+
+        - name: "fourth-job"
+          image: "busybox"
+          args:
+            - "sleep"
+            - "10"
+          parallel: true
