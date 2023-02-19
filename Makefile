@@ -1,6 +1,7 @@
 
 # Image URL to use all building/pushing image targets
 IMG ?= ghcr.io/lukaszraczylo/jobs-manager-operator:latest
+IMG_SECONDARY_TAG ?= ""
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.26.1
 
@@ -87,12 +88,16 @@ docker-push: ## Push docker image with the manager.
 # To properly provided solutions that supports more than one platform you should use this option.
 PLATFORMS ?= linux/arm64,linux/amd64
 .PHONY: docker-buildx
-docker-buildx: test ## Build and push docker image for the manager for cross-platform support
+docker-buildx: ## Build and push docker image for the manager for cross-platform support
 	# copy existing Dockerfile and insert --platform=${BUILDPLATFORM} into Dockerfile.cross, and preserve the original Dockerfile
 	sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{BUILDPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{BUILDPLATFORM\}/' Dockerfile > Dockerfile.cross
 	- docker buildx create --name project-v3-builder
 	docker buildx use project-v3-builder
-	- docker buildx build --push --platform=$(PLATFORMS) --tag ${IMG} -f Dockerfile.cross .
+	if [ -z "$(IMG_SECONDARY_TAG)" ]; then \
+		docker buildx build --push --platform=$(PLATFORMS) --tag ${IMG} -f Dockerfile.cross .; \
+	else \
+		docker buildx build --push --platform=$(PLATFORMS) --tag ${IMG} --tag ${IMG_SECONDARY_TAG} -f Dockerfile.cross .; \
+	fi
 	- docker buildx rm project-v3-builder
 	rm Dockerfile.cross
 
