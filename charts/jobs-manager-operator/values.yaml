@@ -12,8 +12,8 @@ controllerManager:
         memory: 64Mi
   manager:
     image:
-      repository: ghcr.io/lukaszraczylo/jobsmanager
-      tag: 0.0.2
+      repository: ghcr.io/lukaszraczylo/jobs-manager-operator
+      tag: 0.0.5
     resources:
       limits:
         cpu: 500m
