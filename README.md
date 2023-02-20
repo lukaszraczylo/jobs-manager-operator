@@ -5,7 +5,15 @@ This operator is responsible for managing the lifecycle of complicated workflows
 
 ## Getting Started
 
-### Prerequisites
+### Installation with helm
+
+```sh
+helm repo add raczylo https://lukaszraczylo.github.io/helm-charts/
+helm repo update raczylo
+helm install jobs-manager raczylo/jobs-manager
+```
+
+### Prerequisites for local runs
 - [go](https://golang.org/dl/) v1.16+
 - [kustomize](https://sigs.k8s.io/kustomize/docs/INSTALL.md) v3.5.4+
 - [docker](https://docs.docker.com/install/) v19.03.8+
