@@ -34,9 +34,9 @@ func (cp *connPackage) compileParameters(params ...jobsmanagerv1beta1.ManagedJob
 			if params.Env != nil {
 				cparams.Env = append(cparams.Env, params.Env...)
 			}
-			// if params.Volumes != nil {
-			// 	cparams.Volumes = append(cparams.Volumes, params.Volumes...)
-			// }
+			if params.Volumes != nil {
+				cparams.Volumes = append(cparams.Volumes, params.Volumes...)
+			}
 			if params.VolumeMounts != nil {
 				cparams.VolumeMounts = append(cparams.VolumeMounts, params.VolumeMounts...)
 			}
