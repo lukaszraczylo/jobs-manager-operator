@@ -108,6 +108,30 @@ In this case - result for the first job will look like this:
         status: succeeded
 ```
 
+### Kustomization and references
+
+In case of any issues with `configmapGenerator` or `secretGenerator`, please add following to your `kustomization.yaml`:
+
+```yaml
+configurations:
+  - crd-name-reference.yaml
+```
+
+Then you can create `crd-name-reference.yaml` file with following content:
+
+```yaml
+---
+nameReference:
+  - kind: 'ConfigMap'
+    fieldSpecs:
+      - kind: 'ManagedJob'
+        path: 'spec/params/fromEnv[]/configMapRef/name'
+      - kind: 'ManagedJob'
+        path: 'spec/params/env[]/configMapRef/name'
+```
+
+This will instruct kustomize to replace all references to configmaps with their names if they are managed by generators.
+
 ### Running on the cluster
 
 #### Manual installation
