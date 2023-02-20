@@ -8,7 +8,7 @@
 bin
 testbin/*
 Dockerfile.cross
-chart-releaser.cfg
+chart-releaser.yaml
 
 # Test binary, build with `go test -c`
 *.test
