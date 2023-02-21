@@ -118,6 +118,7 @@ func (cp *connPackage) generateDependencyTree() {
 		groupTree := mainTree.Add(group.Name)
 		for _, job := range group.Jobs {
 			jobTree := groupTree.Add(job.Name)
+			job.CompiledParams = cp.compileParameters(cp.mj.Spec.Params, group.Params, job.Params)
 			if job.Parallel {
 				continue
 			} else {
@@ -130,7 +131,6 @@ func (cp *connPackage) generateDependencyTree() {
 					jobTree.Add("Depends on: " + generatedJobName)
 					if !cp.checkIfPresentInDependencies(job.Dependencies, generatedJobName) {
 						job.Dependencies = append(job.Dependencies, &jobsmanagerv1beta1.ManagedJobDependencies{Name: generatedJobName, Status: ExecutionStatusPending})
-						job.CompiledParams = cp.compileParameters(cp.mj.Spec.Params, group.Params, job.Params)
 					}
 				}
 			}
