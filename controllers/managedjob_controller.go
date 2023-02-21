@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 
+	"github.com/lukaszraczylo/pandati"
 	kbatch "k8s.io/api/batch/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
@@ -44,9 +45,10 @@ func (r *ManagedJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	_ = log.FromContext(ctx)
 
 	cp := &connPackage{
-		r:   r,
-		ctx: ctx,
-		req: req,
+		r:              r,
+		ctx:            ctx,
+		req:            req,
+		dependencyTree: nil,
 	}
 
 	var managedJob jobsmanagerv1beta1.ManagedJob
@@ -55,11 +57,19 @@ func (r *ManagedJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 
 	cp.mj = &managedJob
-	cp.buildJobsDependencyTree()
-	cp.checkJobStatus()
-	cp.runPendingJobs()
-	cp.checkGroupsStatus()
 
+	originalMainJobDefinition := cp.mj.DeepCopy()
+	cp.generateDependencyTree()
+
+	// TODO: Re-enable after testing
+	cp.checkRunningJobsStatus()
+	cp.runPendingJobs()
+	cp.checkOverallStatus()
+
+	_, theSame, _ := pandati.CompareStructsReplaced(originalMainJobDefinition, cp.mj)
+	if !theSame {
+		cp.updateCRDStatusDirectly()
+	}
 	// fmt.Printf("Reconcile: %# v", pretty.Formatter(r.Updater))
 
 	return ctrl.Result{}, nil

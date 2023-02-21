@@ -41,6 +41,11 @@ spec:
           args:
             - "sleep"
             - "10"
+        - name: "second-half-job"
+          image: "busybox"
+          args:
+            - "sleep"
+            - "10"
 
     - name: "second-group"
       parallel: true
@@ -57,4 +62,14 @@ spec:
           args:
             - "sleep"
             - "10"
+          parallel: false
+
+    - name: "third-group"
+      parallel: false
+      jobs:
+        - name: "fifth-job"
+          image: "busybox"
+          args:
+            - "echo"
+            - "Hello world!"
           parallel: true

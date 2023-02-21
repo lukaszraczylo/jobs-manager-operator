@@ -1,6 +1,9 @@
 package controllers
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/lukaszraczylo/pandati"
 	kbatch "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -59,59 +62,40 @@ func (cp *connPackage) compileParameters(params ...jobsmanagerv1beta1.ManagedJob
 	return cparams
 }
 
-type previousJobsAndGroups struct {
-	GroupID string
-	JobID   string
-}
-
-func (cp *connPackage) buildJobsDependencyTree() error {
-	changePending := false
-	for i, group := range cp.mj.Spec.Groups {
-		var group_previous string
-		if group.Parallel {
-			group_previous = group.Name
-		} else {
-			if i > 0 {
-				group_previous = cp.mj.Spec.Groups[i-1].Name
-			} else {
-				group_previous = group.Name
-			}
-		}
-		for j, job := range group.Jobs {
-			if job.Dependencies.Group == "" || job.Dependencies.Job == "" {
-				changePending = true
-			}
-			job.Dependencies.Group = group_previous
-			if job.Parallel {
-				job.Dependencies.Job = job.Name
-			} else {
-				if j > 0 {
-					job.Dependencies.Job = group.Jobs[j-1].Name
-				} else {
-					job.Dependencies.Job = job.Name
+func (cp *connPackage) updateDependentJobs(completedJob string, jobStatus string) {
+	for _, group := range cp.mj.Spec.Groups {
+		for _, job := range group.Jobs {
+			for _, dependency := range job.Dependencies {
+				if dependency.Name == completedJob && dependency.Status != jobStatus {
+					dependency.Status = jobStatus
 				}
 			}
 		}
 	}
-	if changePending {
-		cp.updateCRDStatusDirectly()
-	}
-	return nil
 }
 
-func (cp *connPackage) checkJobStatus() {
+func (cp *connPackage) updateDependentGroups(completedGroup string, jobStatus string) {
+	for _, group := range cp.mj.Spec.Groups {
+		for _, dependency := range group.Dependencies {
+			if dependency.Name == completedGroup && dependency.Status != jobStatus {
+				dependency.Status = jobStatus
+			}
+		}
+	}
+}
+
+func (cp *connPackage) checkRunningJobsStatus() {
 	var childJobs kbatch.JobList
 	labelSelector := labels.SelectorFromSet(labels.Set{
 		"jobmanager.raczylo.com/workflow-name": cp.mj.Name,
 	})
 	listOptions := &client.ListOptions{LabelSelector: labelSelector, Namespace: cp.mj.Namespace}
-
 	err := cp.r.Client.List(cp.ctx, &childJobs, listOptions)
 	if err != nil {
-		// log.Log.Error(err, "unable to list child jobs")
+		log.Log.Info("Unable to list child jobs", "error", err.Error())
 		return
 	}
-	changePresent := false
+
 	for _, childJob := range childJobs.Items {
 		for _, group := range cp.mj.Spec.Groups {
 			for _, job := range group.Jobs {
@@ -119,75 +103,122 @@ func (cp *connPackage) checkJobStatus() {
 				if childJob.Name == generatedJobName {
 					if childJob.Status.Succeeded > 0 && job.Status != ExecutionStatusSucceeded {
 						job.Status = ExecutionStatusSucceeded
-						changePresent = true
+						cp.updateDependentJobs(generatedJobName, ExecutionStatusSucceeded)
 						cp.r.Recorder.Eventf(cp.mj, corev1.EventTypeNormal, "Completed", "Job %s completed", childJob.Name)
 					} else if childJob.Status.Failed > 0 && job.Status != ExecutionStatusFailed {
 						job.Status = ExecutionStatusFailed
-						changePresent = true
-						cp.r.Recorder.Eventf(cp.mj, corev1.EventTypeNormal, "Failed", "Job %s failed", childJob.Name)
+						cp.updateDependentJobs(generatedJobName, ExecutionStatusFailed)
+						cp.r.Recorder.Eventf(cp.mj, corev1.EventTypeWarning, "Failed", "Job %s failed", childJob.Name)
 					} else if childJob.Status.Active > 0 && job.Status != ExecutionStatusRunning {
-						changePresent = true
 						job.Status = ExecutionStatusRunning
+						cp.updateDependentJobs(generatedJobName, ExecutionStatusRunning)
+						cp.r.Recorder.Eventf(cp.mj, corev1.EventTypeNormal, "Running", "Job %s running", childJob.Name)
 					}
 				}
 			}
-
 		}
-	}
-	if changePresent {
-		cp.updateCRDStatusDirectly()
 	}
 }
 
 func (cp *connPackage) runPendingJobs() {
-	copyMJ := cp.mj.DeepCopy()
-	changePresent := false
+	// originalMainJobDefinition := cp.mj.DeepCopy()
 	for _, group := range cp.mj.Spec.Groups {
+		run_group := false
+
+		groupJobsCompleted := 0
 		for _, job := range group.Jobs {
-			if job.Status == ExecutionStatusPending {
-				if job.Dependencies.Group == group.Name && job.Dependencies.Job == job.Name {
-					job.CompiledParams = cp.compileParameters(job.Params, group.Params, cp.mj.Spec.Params)
-					err := cp.executeJob(job, group)
-					if err != nil {
-						// log.Log.Info("Unable to execute job", "group", group.Name, "job", job.Name, "error", err)
-						continue
+			if job.Status == ExecutionStatusSucceeded {
+				groupJobsCompleted++
+			}
+		}
+		if groupJobsCompleted == len(group.Jobs) {
+			group.Status = ExecutionStatusSucceeded
+			cp.updateDependentGroups(group.Name, group.Status)
+			continue
+		}
+
+		if group.Status == ExecutionStatusSucceeded || group.Status == ExecutionStatusFailed || group.Status == ExecutionStatusAborted {
+			cp.updateDependentGroups(group.Name, group.Status)
+		}
+
+		if group.Status == ExecutionStatusPending || group.Status == ExecutionStatusRunning {
+			if len(group.Dependencies) > 0 {
+				groupsCompleted := 0
+				for _, group_dependency := range group.Dependencies {
+					if group_dependency.Status == ExecutionStatusSucceeded {
+						groupsCompleted++
 					}
-					job.Status = ExecutionStatusRunning
-					changePresent = true
-					continue
-				} else {
-					for _, group2 := range copyMJ.Spec.Groups {
-						for _, job2 := range group2.Jobs {
-							if job2.Name == job.Dependencies.Job && group2.Name == job.Dependencies.Group {
-								switch job2.Status {
-								case ExecutionStatusSucceeded:
-									job.CompiledParams = cp.compileParameters(job.Params, group.Params, cp.mj.Spec.Params)
-									err := cp.executeJob(job, group)
-									if err != nil {
-										log.Log.Info("Unable to execute job", "group", group.Name, "job", job.Name, "error", err)
-										continue
-									}
-									job.Status = ExecutionStatusRunning
-									changePresent = true
-								case ExecutionStatusFailed:
+					if group_dependency.Status == ExecutionStatusFailed {
+						group.Status = ExecutionStatusAborted
+						cp.updateDependentGroups(group.Name, ExecutionStatusFailed)
+					}
+				}
+				if groupsCompleted == len(group.Dependencies) {
+					run_group = true
+				}
+			} else {
+				run_group = true
+			}
+
+			if !run_group {
+				fmt.Println("Group "+group.Name+" is not running as dependencies were not met", group.Dependencies)
+				continue // not running the group as dependencies were not met
+			} else {
+				group.Status = ExecutionStatusRunning
+				cp.updateDependentGroups(group.Name, ExecutionStatusRunning)
+
+				for _, job := range group.Jobs {
+					run_job := false
+					if job.Status == ExecutionStatusPending {
+						if len(job.Dependencies) > 0 {
+							jobsCompleted := 0
+							for _, job_dependency := range job.Dependencies {
+								if job_dependency.Status == ExecutionStatusSucceeded {
+									jobsCompleted++
+								}
+								if job_dependency.Status == ExecutionStatusFailed {
 									job.Status = ExecutionStatusAborted
-									changePresent = true
+									cp.updateDependentJobs(job.Name, ExecutionStatusFailed)
+								}
+							}
+							if jobsCompleted == len(job.Dependencies) {
+								run_job = true
+							}
+						} else {
+							run_job = true
+						}
+					}
+
+					if !run_job {
+						continue // job is not ready as dependencies were not met
+					} else {
+						if job.Status != ExecutionStatusRunning && job.Status != ExecutionStatusFailed && job.Status != ExecutionStatusSucceeded {
+							job.Status = ExecutionStatusRunning
+							cp.updateDependentJobs(job.Name, ExecutionStatusRunning)
+							cp.r.Recorder.Eventf(cp.mj, corev1.EventTypeNormal, "Running", "Job %s from group %s running", job.Name, group.Name)
+							err := cp.executeJob(job, group)
+							if err != nil {
+								log.Log.Info("Unable to execute job", "error", err.Error())
+								if !strings.Contains(err.Error(), "already exists") {
+									job.Status = ExecutionStatusFailed
+									group.Status = ExecutionStatusFailed
+									cp.updateDependentJobs(job.Name, ExecutionStatusFailed)
+									cp.updateDependentGroups(group.Name, ExecutionStatusFailed)
+									cp.r.Recorder.Eventf(cp.mj, corev1.EventTypeWarning, "Failed", "Job %s from group %s failed", job.Name, group.Name)
 								}
 							}
 						}
 					}
 				}
 			}
+
+			fmt.Println("Running group: ", group.Name, " with status: ", group.Status, " accepted: ", run_group)
 		}
-	}
-	if changePresent {
-		cp.updateCRDStatusDirectly()
 	}
 }
 
 func (cp *connPackage) executeJob(j *jobsmanagerv1beta1.ManagedJobDefinition, g *jobsmanagerv1beta1.ManagedJobGroup) (err error) {
 	generatedJobName := jobNameGenerator(cp.mj.Name, g.Name, j.Name)
-
 	convertRetries := func(retries int) *int32 {
 		if retries == 0 {
 			return nil
@@ -252,10 +283,32 @@ func (cp *connPackage) executeJob(j *jobsmanagerv1beta1.ManagedJobDefinition, g 
 
 	err = cp.r.Client.Create(cp.ctx, &job_handler)
 	if err != nil || pandati.IsZero(job_handler) {
-		log.Log.Error(err, "Unable to create job", "job", job_handler.Name)
+		log.Log.Info("Unable to create job", "job", job_handler.Name, "error", err.Error())
 		return err
 	}
 
 	cp.r.Recorder.Eventf(cp.mj, corev1.EventTypeNormal, "Created", "Created job %s", job_handler.Name)
 	return nil
+}
+
+func (cp *connPackage) checkOverallStatus() {
+	groupsCompleted := 0
+	for _, group := range cp.mj.Spec.Groups {
+		if group.Status == ExecutionStatusSucceeded {
+			groupsCompleted++
+		} else if group.Status == ExecutionStatusFailed || group.Status == ExecutionStatusAborted {
+			cp.mj.Status = ExecutionStatusFailed
+			cp.mj.Spec.Status = cp.mj.Status
+			cp.r.Recorder.Eventf(cp.mj, corev1.EventTypeWarning, "Failure", "Run failed")
+		}
+	}
+
+	if groupsCompleted == len(cp.mj.Spec.Groups) {
+		cp.mj.Status = ExecutionStatusSucceeded
+		cp.r.Recorder.Eventf(cp.mj, corev1.EventTypeNormal, "Success", "Run completed successfuly")
+	} else {
+		cp.mj.Status = ExecutionStatusRunning
+	}
+	cp.mj.Spec.Status = cp.mj.Status
+	cp.r.Status().Update(cp.ctx, cp.mj)
 }
