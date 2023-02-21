@@ -8150,9 +8150,6 @@ spec:
                 default: 1
                 minimum: 1
                 type: integer
-              status:
-                default: pending
-                type: string
             required:
             - groups
             - retries

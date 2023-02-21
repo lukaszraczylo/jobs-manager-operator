@@ -107,9 +107,6 @@ type ManagedJobSpec struct {
 	Groups []*ManagedJobGroup `json:"groups"`
 	// +kubebuilder:validation:Optional
 	Params ManagedJobParameters `json:"params"`
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=pending
-	Status string `json:"status"`
 }
 
 // +kubebuilder:object:root=true
