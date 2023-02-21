@@ -63,6 +63,7 @@ func (r *ManagedJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	_, theSame, _ := pandati.CompareStructsReplaced(originalMainJobDefinition, cp.mj)
 	if !theSame {
 		cp.updateCRDStatusDirectly()
+		return ctrl.Result{}, nil
 	}
 	originalMainJobDefinition = cp.mj.DeepCopy()
 
