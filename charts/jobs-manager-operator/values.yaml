@@ -13,7 +13,7 @@ controllerManager:
   manager:
     image:
       repository: ghcr.io/lukaszraczylo/jobs-manager-operator
-      tag: 0.0.17
+      tag: 0.0.19
     resources:
       limits:
         cpu: 500m
