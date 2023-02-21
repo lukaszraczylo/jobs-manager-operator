@@ -60,12 +60,17 @@ func (r *ManagedJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 	originalMainJobDefinition := cp.mj.DeepCopy()
 	cp.generateDependencyTree()
+	_, theSame, _ := pandati.CompareStructsReplaced(originalMainJobDefinition, cp.mj)
+	if !theSame {
+		cp.updateCRDStatusDirectly()
+	}
+	originalMainJobDefinition = cp.mj.DeepCopy()
 
 	// TODO: Re-enable after testing
 	cp.checkRunningJobsStatus()
 	cp.runPendingJobs()
 
-	_, theSame, _ := pandati.CompareStructsReplaced(originalMainJobDefinition, cp.mj)
+	_, theSame, _ = pandati.CompareStructsReplaced(originalMainJobDefinition, cp.mj)
 	if !theSame {
 		cp.updateCRDStatusDirectly()
 	}
