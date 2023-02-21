@@ -24,10 +24,8 @@ import (
 type ManagedJobDependencies struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=""
-	Group string `json:"group"`
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=""
-	Job string `json:"job"`
+	Name   string `json:"name"`
+	Status string `json:"status"`
 }
 
 type ManagedJobDefinition struct {
@@ -48,8 +46,9 @@ type ManagedJobDefinition struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=pending
 	Status string `json:"status"`
+	// +kubebuilder:validation:Optional
 	// +optional
-	Dependencies ManagedJobDependencies `json:"dependencies"`
+	Dependencies []*ManagedJobDependencies `json:"dependencies"`
 	// +optional
 	CompiledParams ManagedJobParameters `json:"compiledParams"`
 }
@@ -67,6 +66,9 @@ type ManagedJobGroup struct {
 	Jobs []*ManagedJobDefinition `json:"jobs"`
 	// +kubebuilder:validation:Optional
 	Params ManagedJobParameters `json:"params"`
+	// +kubebuilder:validation:Optional
+	// +optional
+	Dependencies []*ManagedJobDependencies `json:"dependencies"`
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=pending
 	Status string `json:"status"`

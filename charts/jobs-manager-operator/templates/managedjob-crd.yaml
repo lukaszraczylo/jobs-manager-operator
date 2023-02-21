@@ -38,6 +38,18 @@ spec:
               groups:
                 items:
                   properties:
+                    dependencies:
+                      items:
+                        properties:
+                          name:
+                            default: ""
+                            type: string
+                          status:
+                            type: string
+                        required:
+                        - status
+                        type: object
+                      type: array
                     jobs:
                       items:
                         properties:
@@ -2100,14 +2112,17 @@ spec:
                                 type: array
                             type: object
                           dependencies:
-                            properties:
-                              group:
-                                default: ""
-                                type: string
-                              job:
-                                default: ""
-                                type: string
-                            type: object
+                            items:
+                              properties:
+                                name:
+                                  default: ""
+                                  type: string
+                                status:
+                                  type: string
+                              required:
+                              - status
+                              type: object
+                            type: array
                           image:
                             minLength: 5
                             type: string

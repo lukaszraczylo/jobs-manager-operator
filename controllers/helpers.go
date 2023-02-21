@@ -30,11 +30,12 @@ type jobStatusUpdate struct {
 }
 
 type connPackage struct {
-	r   *ManagedJobReconciler
-	ctx context.Context
-	req ctrl.Request
-	mtx sync.Mutex
-	mj  *jobsmanagerv1beta1.ManagedJob
+	r              *ManagedJobReconciler
+	ctx            context.Context
+	req            ctrl.Request
+	mtx            sync.Mutex
+	mj             *jobsmanagerv1beta1.ManagedJob
+	dependencyTree Tree
 }
 
 func (cp *connPackage) getOwnerReference() (metav1.OwnerReference, error) {

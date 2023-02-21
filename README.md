@@ -28,7 +28,6 @@ metadata:
   labels:
   name: managedjob-sample
 spec:
-  # Globally defined parameters and environment variables
   retries: 3
   params:
     env:
@@ -40,9 +39,7 @@ spec:
   # Job groups definitions
   groups:
     - name: "first-group"
-      # Group will run in parallel with other defined groups
       parallel: true
-      # Group specific parameters
       params:
         env:
           - name: "FEE"
@@ -63,6 +60,11 @@ spec:
           args:
             - "sleep"
             - "10"
+        - name: "second-half-job"
+          image: "busybox"
+          args:
+            - "sleep"
+            - "10"
 
     - name: "second-group"
       parallel: true
@@ -79,8 +81,43 @@ spec:
           args:
             - "sleep"
             - "10"
+          parallel: false
+
+    - name: "third-group"
+      parallel: false
+      jobs:
+        - name: "fifth-job"
+          image: "busybox"
+          args:
+            - "echo"
+            - "Hello world!"
           parallel: true
 ```
+
+### How does it look in practice?
+
+```yaml
+managedjob-sample
+├── first-group
+│   ├── first-job
+│   ├── second-job
+│   │   └── Depends on: managedjob-sample-first-group-first-job
+│   └── second-half-job
+│       ├── Depends on: managedjob-sample-first-group-first-job
+│       └── Depends on: managedjob-sample-first-group-second-job
+├── second-group
+│   ├── third-job
+│   └── fourth-job
+│       └── Depends on: managedjob-sample-second-group-third-job
+└── third-group
+    ├── fifth-job
+    ├── Depends on group: first-group
+    └── Depends on group: second-group
+```
+
+If dependency exists on the group level - the group will not be executed until all of remaining groups have finished successfuly.
+If dependency exists on the job level - the job will not be executed until all of remaining jobs have finished successfuly.
+Remember that **ORDER matters**.
 
 ### Things to remember
 

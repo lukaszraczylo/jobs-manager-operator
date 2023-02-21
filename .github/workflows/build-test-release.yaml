@@ -100,6 +100,7 @@ jobs:
     name: "Building docker image"
     needs: [ prepare, test ]
     runs-on: ubuntu-20.04
+    if: needs.prepare.outputs.CHECK_IF_MASTER_BRANCH == 'true'
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
