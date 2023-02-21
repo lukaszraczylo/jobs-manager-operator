@@ -64,14 +64,14 @@ func (r *ManagedJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	// TODO: Re-enable after testing
 	cp.checkRunningJobsStatus()
 	cp.runPendingJobs()
-	cp.checkOverallStatus()
 
 	_, theSame, _ := pandati.CompareStructsReplaced(originalMainJobDefinition, cp.mj)
 	if !theSame {
 		cp.updateCRDStatusDirectly()
 	}
-	// fmt.Printf("Reconcile: %# v", pretty.Formatter(r.Updater))
 
+	cp.checkOverallStatus()
+	// fmt.Printf("Reconcile: %# v", pretty.Formatter(r.Updater))
 	return ctrl.Result{}, nil
 }
 

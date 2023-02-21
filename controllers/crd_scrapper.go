@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/lukaszraczylo/pandati"
@@ -102,18 +101,17 @@ func (cp *connPackage) checkRunningJobsStatus() {
 				generatedJobName := jobNameGenerator(cp.mj.Name, group.Name, job.Name)
 				if childJob.Name == generatedJobName {
 					if childJob.Status.Succeeded > 0 && job.Status != ExecutionStatusSucceeded {
+						cp.r.Recorder.Eventf(cp.mj, corev1.EventTypeNormal, "Completed", "Job %s completed [prev: %s]", childJob.Name, job.Status)
 						job.Status = ExecutionStatusSucceeded
-						cp.updateDependentJobs(generatedJobName, ExecutionStatusSucceeded)
-						cp.r.Recorder.Eventf(cp.mj, corev1.EventTypeNormal, "Completed", "Job %s completed", childJob.Name)
 					} else if childJob.Status.Failed > 0 && job.Status != ExecutionStatusFailed {
+						cp.r.Recorder.Eventf(cp.mj, corev1.EventTypeWarning, "Failed", "Job %s failed [prev: %s]", childJob.Name, job.Status)
 						job.Status = ExecutionStatusFailed
-						cp.updateDependentJobs(generatedJobName, ExecutionStatusFailed)
-						cp.r.Recorder.Eventf(cp.mj, corev1.EventTypeWarning, "Failed", "Job %s failed", childJob.Name)
 					} else if childJob.Status.Active > 0 && job.Status != ExecutionStatusRunning {
+						cp.r.Recorder.Eventf(cp.mj, corev1.EventTypeNormal, "Running", "Job %s running [prev: %s]", childJob.Name, job.Status)
 						job.Status = ExecutionStatusRunning
-						cp.updateDependentJobs(generatedJobName, ExecutionStatusRunning)
-						cp.r.Recorder.Eventf(cp.mj, corev1.EventTypeNormal, "Running", "Job %s running", childJob.Name)
 					}
+					cp.updateDependentJobs(generatedJobName, job.Status)
+					continue
 				}
 			}
 		}
@@ -137,11 +135,13 @@ func (cp *connPackage) runPendingJobs() {
 			continue
 		}
 
-		if group.Status == ExecutionStatusSucceeded || group.Status == ExecutionStatusFailed || group.Status == ExecutionStatusAborted {
+		approvedStatuses := []string{ExecutionStatusSucceeded, ExecutionStatusFailed, ExecutionStatusAborted}
+		if pandati.ExistsInSlice(approvedStatuses, group.Status) {
 			cp.updateDependentGroups(group.Name, group.Status)
 		}
 
-		if group.Status == ExecutionStatusPending || group.Status == ExecutionStatusRunning {
+		approvedStatuses = []string{ExecutionStatusPending, ExecutionStatusRunning}
+		if pandati.ExistsInSlice(approvedStatuses, group.Status) {
 			if len(group.Dependencies) > 0 {
 				groupsCompleted := 0
 				for _, group_dependency := range group.Dependencies {
@@ -161,7 +161,7 @@ func (cp *connPackage) runPendingJobs() {
 			}
 
 			if !run_group {
-				fmt.Println("Group "+group.Name+" is not running as dependencies were not met", group.Dependencies)
+				// fmt.Println("Group "+group.Name+" is not running as dependencies were not met", group.Dependencies)
 				continue // not running the group as dependencies were not met
 			} else {
 				group.Status = ExecutionStatusRunning
@@ -192,27 +192,29 @@ func (cp *connPackage) runPendingJobs() {
 					if !run_job {
 						continue // job is not ready as dependencies were not met
 					} else {
-						if job.Status != ExecutionStatusRunning && job.Status != ExecutionStatusFailed && job.Status != ExecutionStatusSucceeded {
-							job.Status = ExecutionStatusRunning
-							cp.updateDependentJobs(job.Name, ExecutionStatusRunning)
-							cp.r.Recorder.Eventf(cp.mj, corev1.EventTypeNormal, "Running", "Job %s from group %s running", job.Name, group.Name)
+						approvedStatuses = []string{ExecutionStatusRunning, ExecutionStatusFailed, ExecutionStatusAborted}
+						if !pandati.ExistsInSlice(approvedStatuses, job.Status) {
 							err := cp.executeJob(job, group)
 							if err != nil {
 								log.Log.Info("Unable to execute job", "error", err.Error())
-								if !strings.Contains(err.Error(), "already exists") {
+								if !strings.Contains(err.Error(), "exists") {
 									job.Status = ExecutionStatusFailed
 									group.Status = ExecutionStatusFailed
 									cp.updateDependentJobs(job.Name, ExecutionStatusFailed)
 									cp.updateDependentGroups(group.Name, ExecutionStatusFailed)
 									cp.r.Recorder.Eventf(cp.mj, corev1.EventTypeWarning, "Failed", "Job %s from group %s failed", job.Name, group.Name)
 								}
+								return
 							}
+							job.Status = ExecutionStatusRunning
+							cp.updateDependentJobs(job.Name, ExecutionStatusRunning)
+							cp.r.Recorder.Eventf(cp.mj, corev1.EventTypeNormal, "Running", "Job %s from group %s running", job.Name, group.Name)
 						}
 					}
 				}
 			}
 
-			fmt.Println("Running group: ", group.Name, " with status: ", group.Status, " accepted: ", run_group)
+			// fmt.Println("Running group: ", group.Name, " with status: ", group.Status, " accepted: ", run_group)
 		}
 	}
 }
@@ -283,7 +285,6 @@ func (cp *connPackage) executeJob(j *jobsmanagerv1beta1.ManagedJobDefinition, g 
 
 	err = cp.r.Client.Create(cp.ctx, &job_handler)
 	if err != nil || pandati.IsZero(job_handler) {
-		log.Log.Info("Unable to create job", "job", job_handler.Name, "error", err.Error())
 		return err
 	}
 
@@ -293,22 +294,25 @@ func (cp *connPackage) executeJob(j *jobsmanagerv1beta1.ManagedJobDefinition, g 
 
 func (cp *connPackage) checkOverallStatus() {
 	groupsCompleted := 0
+	negativeStatuses := []string{ExecutionStatusFailed, ExecutionStatusAborted}
 	for _, group := range cp.mj.Spec.Groups {
 		if group.Status == ExecutionStatusSucceeded {
 			groupsCompleted++
-		} else if group.Status == ExecutionStatusFailed || group.Status == ExecutionStatusAborted {
+		} else if pandati.ExistsInSlice(negativeStatuses, group.Status) {
 			cp.mj.Status = ExecutionStatusFailed
-			cp.mj.Spec.Status = cp.mj.Status
-			cp.r.Recorder.Eventf(cp.mj, corev1.EventTypeWarning, "Failure", "Run failed")
+			cp.r.Recorder.Eventf(cp.mj, corev1.EventTypeWarning, "Failure", "Run failed in group %s", group.Name)
+		} else {
+			continue
 		}
 	}
 
 	if groupsCompleted == len(cp.mj.Spec.Groups) {
+		if cp.mj.Status != ExecutionStatusSucceeded {
+			cp.r.Recorder.Eventf(cp.mj, corev1.EventTypeNormal, "Success", "Run completed successfuly")
+		}
 		cp.mj.Status = ExecutionStatusSucceeded
-		cp.r.Recorder.Eventf(cp.mj, corev1.EventTypeNormal, "Success", "Run completed successfuly")
 	} else {
 		cp.mj.Status = ExecutionStatusRunning
 	}
-	cp.mj.Spec.Status = cp.mj.Status
 	cp.r.Status().Update(cp.ctx, cp.mj)
 }
