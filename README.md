@@ -145,6 +145,41 @@ In this case - result for the first job will look like this:
         status: succeeded
 ```
 
+### Available params
+
+There's quite a lot of of flexibility with parameters. On every level where params are allowed, you can define:
+
+```yaml
+params:
+  fromEnv:
+    - configMapRef:
+        name: "configmap-name"
+      key: "key-name"
+  env:
+    - name: "FOO"
+      value: "bar"
+  volumes:
+    - name: secrets-store-api
+      csi:
+        driver: secrets-store.csi.k8s.io
+        readOnly: true
+        volumeAttributes:
+          secretProviderClass: api-secrets-provider
+  volumeMount:
+    - name: secrets-store-api
+      mountPath: "/mnt/secrets-api"
+      readOnly: true
+  serviceAccount: "service-account-name"
+  restartPolicy: "Never"
+  imagePullSecrets:
+    - "ghcr-token"
+  imagePullPolicy:
+    - "Always"
+  labels:
+    "label-name": "label-value"
+```
+
+
 ### Kustomization and references
 
 In case of any issues with `configmapGenerator` or `secretGenerator`, please add following to your `kustomization.yaml`:
