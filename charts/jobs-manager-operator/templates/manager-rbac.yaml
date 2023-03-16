@@ -6,6 +6,18 @@ metadata:
   {{- include "chart.labels" . | nindent 4 }}
 rules:
 - apiGroups:
+  - batch
+  resources:
+  - jobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
   - jobsmanager.raczylo.com
   resources:
   - managedjobs
@@ -29,28 +41,6 @@ rules:
   - managedjobs/status
   verbs:
   - get
-  - patch
-  - update
-# Add ability to manage jobs
-- apiGroups:
-  - batch
-  resources:
-  - jobs
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-# Add access to events
-- apiGroups:
-  - ""
-  resources:
-  - events
-  verbs:
-  - create
   - patch
   - update
 ---

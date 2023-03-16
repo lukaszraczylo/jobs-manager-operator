@@ -53,11 +53,13 @@ func (cp *connPackage) compileParameters(params ...jobsmanagerv1beta1.ManagedJob
 				cparams.ImagePullSecrets = append(cparams.ImagePullSecrets, params.ImagePullSecrets...)
 			}
 			if params.Labels != nil {
+				cparams.Labels = make(map[string]string)
 				for k, v := range params.Labels {
 					cparams.Labels[k] = v
 				}
 			}
 			if params.Annotations != nil {
+				cparams.Annotations = make(map[string]string)
 				for k, v := range params.Annotations {
 					cparams.Annotations[k] = v
 				}

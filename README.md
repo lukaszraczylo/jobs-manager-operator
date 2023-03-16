@@ -176,7 +176,9 @@ params:
   imagePullPolicy:
     - "Always"
   labels:
-    "label-name": "label-value"
+    this/works: "true"
+  annotations:
+    this/works/aswell: "true"
 ```
 
 
