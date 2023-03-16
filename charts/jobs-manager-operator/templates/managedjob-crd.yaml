@@ -59,6 +59,10 @@ spec:
                             type: array
                           compiledParams:
                             properties:
+                              annotations:
+                                additionalProperties:
+                                  type: string
+                                type: object
                               env:
                                 items:
                                   description: EnvVar represents an environment variable
@@ -2135,6 +2139,10 @@ spec:
                             type: boolean
                           params:
                             properties:
+                              annotations:
+                                additionalProperties:
+                                  type: string
+                                type: object
                               env:
                                 items:
                                   description: EnvVar represents an environment variable
@@ -4205,6 +4213,10 @@ spec:
                       type: boolean
                     params:
                       properties:
+                        annotations:
+                          additionalProperties:
+                            type: string
+                          type: object
                         env:
                           items:
                             description: EnvVar represents an environment variable present
@@ -6131,6 +6143,10 @@ spec:
                 type: array
               params:
                 properties:
+                  annotations:
+                    additionalProperties:
+                      type: string
+                    type: object
                   env:
                     items:
                       description: EnvVar represents an environment variable present

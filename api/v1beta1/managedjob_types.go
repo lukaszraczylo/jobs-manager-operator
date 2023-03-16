@@ -94,6 +94,8 @@ type ManagedJobParameters struct {
 	ImagePullPolicy string `json:"imagePullPolicy,omitempty"`
 	// +kubebuilder:validation:Optional
 	Labels map[string]string `json:"labels,omitempty"`
+	// +kubebuilder:validation:Optional
+	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
 // ManagedJobSpec defines the desired state of ManagedJob
