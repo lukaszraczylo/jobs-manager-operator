@@ -24,6 +24,7 @@ type compiledParams struct {
 	ImagePullSecrets []corev1.LocalObjectReference
 	ImagePullPolicy  string
 	Labels           map[string]string
+	Annotations      map[string]string
 }
 
 func (cp *connPackage) compileParameters(params ...jobsmanagerv1beta1.ManagedJobParameters) jobsmanagerv1beta1.ManagedJobParameters {
@@ -54,6 +55,11 @@ func (cp *connPackage) compileParameters(params ...jobsmanagerv1beta1.ManagedJob
 			if params.Labels != nil {
 				for k, v := range params.Labels {
 					cparams.Labels[k] = v
+				}
+			}
+			if params.Annotations != nil {
+				for k, v := range params.Annotations {
+					cparams.Annotations[k] = v
 				}
 			}
 		}
@@ -242,6 +248,12 @@ func (cp *connPackage) executeJob(j *jobsmanagerv1beta1.ManagedJobDefinition, g 
 		labels[k] = v
 	}
 
+	annotations := map[string]string{}
+
+	for k, v := range j.CompiledParams.Annotations {
+		annotations[k] = v
+	}
+
 	job_handler := kbatch.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      generatedJobName,
@@ -250,9 +262,10 @@ func (cp *connPackage) executeJob(j *jobsmanagerv1beta1.ManagedJobDefinition, g 
 		Spec: kbatch.JobSpec{
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      generatedJobName,
-					Namespace: cp.mj.Namespace,
-					Labels:    labels,
+					Name:        generatedJobName,
+					Namespace:   cp.mj.Namespace,
+					Labels:      labels,
+					Annotations: annotations,
 				},
 				Spec: corev1.PodSpec{
 					Volumes:            j.CompiledParams.Volumes,
