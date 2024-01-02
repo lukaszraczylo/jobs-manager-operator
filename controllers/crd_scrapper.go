@@ -52,6 +52,9 @@ func (cp *connPackage) compileParameters(params ...jobsmanagerv1beta1.ManagedJob
 			if params.ImagePullSecrets != nil {
 				cparams.ImagePullSecrets = append(cparams.ImagePullSecrets, params.ImagePullSecrets...)
 			}
+			if params.ImagePullPolicy != "" {
+				cparams.ImagePullPolicy = params.ImagePullPolicy
+			}
 			if params.Labels != nil {
 				cparams.Labels = make(map[string]string)
 				for k, v := range params.Labels {
