@@ -747,7 +747,7 @@ spec:
                                             and the sum of memory limits of all containers
                                             in a pod. The default is nil which means
                                             that the limit is undefined. More info:
-                                            http://kubernetes.io/docs/user-guide/volumes#emptydir'
+                                            https://kubernetes.io/docs/concepts/storage/volumes#emptydir'
                                           pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                           x-kubernetes-int-or-string: true
                                       type: object
@@ -962,7 +962,8 @@ spec:
                                                         \n This is an alpha field and
                                                         requires enabling the DynamicResourceAllocation
                                                         feature gate. \n This field
-                                                        is immutable."
+                                                        is immutable. It can only be
+                                                        set for containers."
                                                       items:
                                                         description: ResourceClaim references
                                                           one entry in PodSpec.ResourceClaims.
@@ -1009,7 +1010,8 @@ spec:
                                                         it defaults to Limits if that
                                                         is explicitly specified, otherwise
                                                         to an implementation-defined
-                                                        value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                                                        value. Requests cannot exceed
+                                                        Limits. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                                                       type: object
                                                   type: object
                                                 selector:
@@ -2827,7 +2829,7 @@ spec:
                                             and the sum of memory limits of all containers
                                             in a pod. The default is nil which means
                                             that the limit is undefined. More info:
-                                            http://kubernetes.io/docs/user-guide/volumes#emptydir'
+                                            https://kubernetes.io/docs/concepts/storage/volumes#emptydir'
                                           pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                           x-kubernetes-int-or-string: true
                                       type: object
@@ -3042,7 +3044,8 @@ spec:
                                                         \n This is an alpha field and
                                                         requires enabling the DynamicResourceAllocation
                                                         feature gate. \n This field
-                                                        is immutable."
+                                                        is immutable. It can only be
+                                                        set for containers."
                                                       items:
                                                         description: ResourceClaim references
                                                           one entry in PodSpec.ResourceClaims.
@@ -3089,7 +3092,8 @@ spec:
                                                         it defaults to Limits if that
                                                         is explicitly specified, otherwise
                                                         to an implementation-defined
-                                                        value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                                                        value. Requests cannot exceed
+                                                        Limits. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                                                       type: object
                                                   type: object
                                                 selector:
@@ -4856,7 +4860,7 @@ spec:
                                       be the minimum value between the SizeLimit specified
                                       here and the sum of memory limits of all containers
                                       in a pod. The default is nil which means that
-                                      the limit is undefined. More info: http://kubernetes.io/docs/user-guide/volumes#emptydir'
+                                      the limit is undefined. More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir'
                                     pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                     x-kubernetes-int-or-string: true
                                 type: object
@@ -5051,7 +5055,8 @@ spec:
                                                   that are used by this container. \n
                                                   This is an alpha field and requires
                                                   enabling the DynamicResourceAllocation
-                                                  feature gate. \n This field is immutable."
+                                                  feature gate. \n This field is immutable.
+                                                  It can only be set for containers."
                                                 items:
                                                   description: ResourceClaim references
                                                     one entry in PodSpec.ResourceClaims.
@@ -5094,7 +5099,8 @@ spec:
                                                   a container, it defaults to Limits
                                                   if that is explicitly specified, otherwise
                                                   to an implementation-defined value.
-                                                  More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                                                  Requests cannot exceed Limits. More
+                                                  info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                                                 type: object
                                             type: object
                                           selector:
@@ -6747,7 +6753,7 @@ spec:
                                 between the SizeLimit specified here and the sum of
                                 memory limits of all containers in a pod. The default
                                 is nil which means that the limit is undefined. More
-                                info: http://kubernetes.io/docs/user-guide/volumes#emptydir'
+                                info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir'
                               pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                               x-kubernetes-int-or-string: true
                           type: object
@@ -6925,7 +6931,8 @@ spec:
                                             defined in spec.resourceClaims, that are
                                             used by this container. \n This is an alpha
                                             field and requires enabling the DynamicResourceAllocation
-                                            feature gate. \n This field is immutable."
+                                            feature gate. \n This field is immutable.
+                                            It can only be set for containers."
                                           items:
                                             description: ResourceClaim references one
                                               entry in PodSpec.ResourceClaims.
@@ -6967,7 +6974,8 @@ spec:
                                             Requests is omitted for a container, it
                                             defaults to Limits if that is explicitly
                                             specified, otherwise to an implementation-defined
-                                            value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                                            value. Requests cannot exceed Limits. More
+                                            info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                                           type: object
                                       type: object
                                     selector:
