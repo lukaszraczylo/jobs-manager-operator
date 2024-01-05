@@ -1,5 +1,23 @@
 # Kubernetes Jobs Manager Operator
 
+- [Kubernetes Jobs Manager Operator](#kubernetes-jobs-manager-operator)
+  - [Description](#description)
+  - [Getting Started](#getting-started)
+    - [Installation with helm](#installation-with-helm)
+    - [Prerequisites for local runs](#prerequisites-for-local-runs)
+    - [Jobs configuration](#jobs-configuration)
+    - [How does it look in practice?](#how-does-it-look-in-practice)
+    - [Things to remember](#things-to-remember)
+    - [Available params](#available-params)
+    - [Kustomization and references](#kustomization-and-references)
+    - [Running on the cluster](#running-on-the-cluster)
+      - [Manual installation](#manual-installation)
+      - [Manually uninstall CRDs](#manually-uninstall-crds)
+    - [Manually undeploy controller](#manually-undeploy-controller)
+    - [How it works](#how-it-works)
+  - [License](#license)
+
+
 ## Description
 This operator is responsible for managing the lifecycle of complicated workflows which consist of multiple jobs and making their management easy, without need for dozens of yaml files and doing magic with ordering.
 
