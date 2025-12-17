@@ -1,29 +1,37 @@
 apiVersion: v2
 name: jobs-manager
-description: Kubernetes jobs manager operator
-# A chart can be either an 'application' or a 'library' chart.
-#
-# Application charts are a collection of templates that can be packaged into versioned archives
-# to be deployed.
-#
-# Library charts provide useful utilities or functions for the chart developer. They're included as
-# a dependency of application charts to inject those utilities and functions into the rendering
-# pipeline. Library charts do not define any templates and therefore cannot be deployed.
+description: Kubernetes jobs manager operator for orchestrating workflow-based job execution with dependency management
 type: application
-# This is the chart version. This version number should be incremented each time you make changes
-# to the chart and its templates, including the app version.
-# Versions are expected to follow Semantic Versioning (https://semver.org/)
-version: 0.0.33
-# This is the version number of the application being deployed. This version number should be
-# incremented each time you make changes to the application. Versions are not expected to
-# follow Semantic Versioning. They should reflect the version the application is using.
-# It is recommended to use it with quotes.
-appVersion: "0.0.33"
+version: 0.0.34
+appVersion: "0.0.34"
 keywords:
   - operator
   - jobs
   - tasks
+  - workflow
+  - kubernetes
+  - batch
 home: https://raczylo.com
+sources:
+  - https://github.com/lukaszraczylo/jobs-manager-operator
 maintainers:
   - name: lukaszraczylo
     email: job-manager-operator@raczylo.com
+annotations:
+  artifacthub.io/changes: |
+    - kind: added
+      description: Prometheus metrics support (jobs created/succeeded/failed, active jobs, reconciliation duration)
+    - kind: added
+      description: Configurable leader election ID via --leader-election-id flag
+    - kind: added
+      description: Configurable development logging mode via --dev-mode flag
+    - kind: added
+      description: LOG_LEVEL environment variable support
+    - kind: added
+      description: Finalizers for proper resource cleanup
+    - kind: added
+      description: Resource limits support for job containers
+    - kind: added
+      description: Reconciliation backoff/requeue logic
+    - kind: improved
+      description: O(1) dependency lookup performance optimization

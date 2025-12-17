@@ -25,3 +25,4 @@ chart-releaser.yaml
 *.swp
 *.swo
 *~
+dist/

@@ -53,12 +53,23 @@ spec:
           10 }}
         securityContext: {{- toYaml .Values.controllerManager.kubeRbacProxy.containerSecurityContext
           | nindent 10 }}
-      - args: {{- toYaml .Values.controllerManager.manager.args | nindent 8 }}
+      - args:
+        {{- toYaml .Values.controllerManager.manager.args | nindent 8 }}
+        {{- if .Values.controllerManager.manager.leaderElectionId }}
+        - --leader-election-id={{ .Values.controllerManager.manager.leaderElectionId }}
+        {{- end }}
+        {{- if .Values.controllerManager.manager.devMode }}
+        - --dev-mode
+        {{- end }}
         command:
         - /manager
         env:
         - name: KUBERNETES_CLUSTER_DOMAIN
           value: {{ quote .Values.kubernetesClusterDomain }}
+        {{- if .Values.controllerManager.manager.env.LOG_LEVEL }}
+        - name: LOG_LEVEL
+          value: {{ quote .Values.controllerManager.manager.env.LOG_LEVEL }}
+        {{- end }}
         image: {{ .Values.controllerManager.manager.image.repository }}:{{ .Values.controllerManager.manager.image.tag | default .Chart.AppVersion }}
         livenessProbe:
           httpGet:

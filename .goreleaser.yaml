@@ -8,6 +8,11 @@ project_name: jobs-manager-operator
 before:
   hooks:
     - go mod tidy
+    # Update Helm chart version to match release version
+    - 'sed -i.bak ''s/^version:.*/version: {{ .Version }}/'' charts/jobs-manager-operator/Chart.yaml'
+    - 'sed -i.bak ''s/^appVersion:.*/appVersion: "{{ .Version }}"/'' charts/jobs-manager-operator/Chart.yaml'
+    - 'sed -i.bak ''s/tag:.*/tag: "{{ .Version }}"/'' charts/jobs-manager-operator/values.yaml'
+    - rm -f charts/jobs-manager-operator/Chart.yaml.bak charts/jobs-manager-operator/values.yaml.bak
 
 builds:
   # Kubernetes operator manager
@@ -69,10 +74,15 @@ archives:
       - goos: windows
         formats:
           - zip
+    hooks:
+      after:
+        - helm package charts/jobs-manager-operator -d dist/
 
 checksum:
   name_template: 'checksums.txt'
   algorithm: sha256
+  extra_files:
+    - glob: dist/jobs-manager-*.tgz
 
 changelog:
   sort: asc
@@ -91,6 +101,8 @@ release:
   draft: false
   prerelease: auto
   name_template: "v{{.Version}}"
+  extra_files:
+    - glob: dist/jobs-manager-*.tgz
   header: |
     ## Jobs Manager Operator v{{.Version}}
 
@@ -98,10 +110,16 @@ release:
 
     ### Operator Installation
 
-    **Helm:**
+    **Helm (from repository):**
     ```bash
-    helm repo add jobs-manager https://lukaszraczylo.github.io/jobs-manager-operator
-    helm install jobs-manager jobs-manager/jobs-manager-operator
+    helm repo add jobs-manager https://lukaszraczylo.github.io/helm-charts
+    helm repo update
+    helm install jobs-manager jobs-manager/jobs-manager --version {{.Version}}
+    ```
+
+    **Helm (from release asset):**
+    ```bash
+    helm install jobs-manager https://github.com/lukaszraczylo/jobs-manager-operator/releases/download/v{{.Version}}/jobs-manager-{{.Version}}.tgz
     ```
 
     **Docker:**
