@@ -21,10 +21,19 @@ controllerManager:
         cpu: 5m
         memory: 64Mi
   manager:
+    # Command line arguments for the manager
     args:
     - --health-probe-bind-address=:8081
     - --metrics-bind-address=127.0.0.1:8080
     - --leader-elect
+    # Leader election ID - customize for multi-tenant clusters
+    leaderElectionId: "jobsmanager.raczylo.com"
+    # Enable development mode with verbose logging (console format)
+    devMode: false
+    # Environment variables for the manager container
+    env:
+      # Set to "debug" to enable verbose logging
+      LOG_LEVEL: ""
     containerSecurityContext:
       allowPrivilegeEscalation: false
       capabilities:
@@ -32,7 +41,7 @@ controllerManager:
         - ALL
     image:
       repository: ghcr.io/lukaszraczylo/jobs-manager-operator
-      tag: 0.0.33
+      tag: "0.0.34"
     resources:
       limits:
         cpu: 500m
@@ -43,7 +52,10 @@ controllerManager:
   replicas: 1
   serviceAccount:
     annotations: {}
+
 kubernetesClusterDomain: cluster.local
+
+# Metrics service configuration
 metricsService:
   ports:
   - name: https
@@ -51,3 +63,15 @@ metricsService:
     protocol: TCP
     targetPort: https
   type: ClusterIP
+
+# ServiceMonitor for Prometheus Operator integration
+serviceMonitor:
+  enabled: false
+  # Namespace where ServiceMonitor will be created (defaults to release namespace)
+  namespace: ""
+  # Additional labels for ServiceMonitor
+  labels: {}
+  # Scrape interval
+  interval: 30s
+  # Scrape timeout
+  scrapeTimeout: 10s

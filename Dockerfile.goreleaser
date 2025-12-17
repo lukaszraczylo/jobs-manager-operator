@@ -1,0 +1,8 @@
+# Dockerfile for GoReleaser dockers_v2
+# GoReleaser organizes binaries by platform: linux/amd64/manager, linux/arm64/manager
+FROM gcr.io/distroless/static:nonroot
+ARG TARGETPLATFORM
+WORKDIR /
+COPY ${TARGETPLATFORM}/manager /manager
+USER 65532:65532
+ENTRYPOINT ["/manager"]
