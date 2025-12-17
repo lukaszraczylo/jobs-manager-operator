@@ -10,7 +10,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	jobsmanagerv1beta1 "raczylo.com/jobs-manager-operator/api/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 func (cp *connPackage) compileParameters(params ...jobsmanagerv1beta1.ManagedJobParameters) jobsmanagerv1beta1.ManagedJobParameters {
@@ -53,28 +52,33 @@ func (cp *connPackage) compileParameters(params ...jobsmanagerv1beta1.ManagedJob
 					cparams.Annotations[k] = v
 				}
 			}
+			if params.Resources != nil {
+				cparams.Resources = params.Resources
+			}
 		}
 	}
 	return cparams
 }
 
+// updateDependentJobs updates the status of all dependencies that reference the completed job.
+// Uses the pre-built jobDepMap for O(1) lookup instead of iterating through all jobs.
 func (cp *connPackage) updateDependentJobs(completedJob string, jobStatus string) {
-	for _, group := range cp.mj.Spec.Groups {
-		for _, job := range group.Jobs {
-			for _, dependency := range job.Dependencies {
-				if dependency.Name == completedJob && dependency.Status != jobStatus {
-					dependency.Status = jobStatus
-				}
+	if deps, exists := cp.jobDepMap[completedJob]; exists {
+		for _, dep := range deps {
+			if dep.Status != jobStatus {
+				dep.Status = jobStatus
 			}
 		}
 	}
 }
 
+// updateDependentGroups updates the status of all dependencies that reference the completed group.
+// Uses the pre-built groupDepMap for O(1) lookup instead of iterating through all groups.
 func (cp *connPackage) updateDependentGroups(completedGroup string, jobStatus string) {
-	for _, group := range cp.mj.Spec.Groups {
-		for _, dependency := range group.Dependencies {
-			if dependency.Name == completedGroup && dependency.Status != jobStatus {
-				dependency.Status = jobStatus
+	if deps, exists := cp.groupDepMap[completedGroup]; exists {
+		for _, dep := range deps {
+			if dep.Status != jobStatus {
+				dep.Status = jobStatus
 			}
 		}
 	}
@@ -83,16 +87,20 @@ func (cp *connPackage) updateDependentGroups(completedGroup string, jobStatus st
 func (cp *connPackage) checkRunningJobsStatus() {
 	var childJobs kbatch.JobList
 	labelSelector := labels.SelectorFromSet(labels.Set{
-		"jobmanager.raczylo.com/workflow-name": cp.mj.Name,
+		LabelWorkflowName: cp.mj.Name,
 	})
 	listOptions := &client.ListOptions{LabelSelector: labelSelector, Namespace: cp.mj.Namespace}
 	err := cp.r.Client.List(cp.ctx, &childJobs, listOptions)
 	if err != nil {
-		log.Log.Info("Unable to list child jobs", "error", err.Error())
+		cp.logger.Error(err, "Unable to list child jobs")
 		return
 	}
 
+	activeJobCount := 0
 	for _, childJob := range childJobs.Items {
+		if childJob.Status.Active > 0 {
+			activeJobCount++
+		}
 		for _, group := range cp.mj.Spec.Groups {
 			for _, job := range group.Jobs {
 				generatedJobName := jobNameGenerator(cp.mj.Name, group.Name, job.Name)
@@ -100,9 +108,11 @@ func (cp *connPackage) checkRunningJobsStatus() {
 					if childJob.Status.Succeeded > 0 && job.Status != ExecutionStatusSucceeded {
 						cp.r.Recorder.Eventf(cp.mj, corev1.EventTypeNormal, "Completed", "Job %s completed [prev: %s]", childJob.Name, job.Status)
 						job.Status = ExecutionStatusSucceeded
+						RecordJobSucceeded(cp.mj.Namespace, cp.mj.Name, group.Name)
 					} else if childJob.Status.Failed > 0 && job.Status != ExecutionStatusFailed {
 						cp.r.Recorder.Eventf(cp.mj, corev1.EventTypeWarning, "Failed", "Job %s failed [prev: %s]", childJob.Name, job.Status)
 						job.Status = ExecutionStatusFailed
+						RecordJobFailed(cp.mj.Namespace, cp.mj.Name, group.Name)
 					} else if childJob.Status.Active > 0 && job.Status != ExecutionStatusRunning {
 						cp.r.Recorder.Eventf(cp.mj, corev1.EventTypeNormal, "Running", "Job %s running [prev: %s]", childJob.Name, job.Status)
 						job.Status = ExecutionStatusRunning
@@ -113,12 +123,12 @@ func (cp *connPackage) checkRunningJobsStatus() {
 			}
 		}
 	}
+	SetActiveJobs(cp.mj.Namespace, cp.mj.Name, float64(activeJobCount))
 }
 
 func (cp *connPackage) runPendingJobs() {
-	// originalMainJobDefinition := cp.mj.DeepCopy()
 	for _, group := range cp.mj.Spec.Groups {
-		run_group := false
+		runGroup := false
 
 		groupJobsCompleted := 0
 		for _, job := range group.Jobs {
@@ -141,59 +151,58 @@ func (cp *connPackage) runPendingJobs() {
 		if pandati.ExistsInSlice(approvedStatuses, group.Status) {
 			if len(group.Dependencies) > 0 {
 				groupsCompleted := 0
-				for _, group_dependency := range group.Dependencies {
-					if group_dependency.Status == ExecutionStatusSucceeded {
+				for _, groupDep := range group.Dependencies {
+					if groupDep.Status == ExecutionStatusSucceeded {
 						groupsCompleted++
 					}
-					if group_dependency.Status == ExecutionStatusFailed {
+					if groupDep.Status == ExecutionStatusFailed {
 						group.Status = ExecutionStatusAborted
 						cp.updateDependentGroups(group.Name, ExecutionStatusFailed)
 					}
 				}
 				if groupsCompleted == len(group.Dependencies) {
-					run_group = true
+					runGroup = true
 				}
 			} else {
-				run_group = true
+				runGroup = true
 			}
 
-			if !run_group {
-				// fmt.Println("Group "+group.Name+" is not running as dependencies were not met", group.Dependencies)
+			if !runGroup {
 				continue // not running the group as dependencies were not met
 			} else {
 				group.Status = ExecutionStatusRunning
 				cp.updateDependentGroups(group.Name, ExecutionStatusRunning)
 
 				for _, job := range group.Jobs {
-					run_job := false
+					runJob := false
 					if job.Status == ExecutionStatusPending {
 						if len(job.Dependencies) > 0 {
 							jobsCompleted := 0
-							for _, job_dependency := range job.Dependencies {
-								if job_dependency.Status == ExecutionStatusSucceeded {
+							for _, jobDep := range job.Dependencies {
+								if jobDep.Status == ExecutionStatusSucceeded {
 									jobsCompleted++
 								}
-								if job_dependency.Status == ExecutionStatusFailed {
+								if jobDep.Status == ExecutionStatusFailed {
 									job.Status = ExecutionStatusAborted
 									cp.updateDependentJobs(job.Name, ExecutionStatusFailed)
 								}
 							}
 							if jobsCompleted == len(job.Dependencies) {
-								run_job = true
+								runJob = true
 							}
 						} else {
-							run_job = true
+							runJob = true
 						}
 					}
 
-					if !run_job {
+					if !runJob {
 						continue // job is not ready as dependencies were not met
 					} else {
 						approvedStatuses = []string{ExecutionStatusRunning, ExecutionStatusFailed, ExecutionStatusAborted}
 						if !pandati.ExistsInSlice(approvedStatuses, job.Status) {
 							err := cp.executeJob(job, group)
 							if err != nil {
-								log.Log.Info("Unable to execute job", "error", err.Error())
+								cp.logger.Error(err, "Unable to execute job", "job", job.Name, "group", group.Name)
 								if !strings.Contains(err.Error(), "exists") {
 									job.Status = ExecutionStatusFailed
 									group.Status = ExecutionStatusFailed
@@ -210,8 +219,6 @@ func (cp *connPackage) runPendingJobs() {
 					}
 				}
 			}
-
-			// fmt.Println("Running group: ", group.Name, " with status: ", group.Status, " accepted: ", run_group)
 		}
 	}
 }
@@ -232,10 +239,10 @@ func (cp *connPackage) executeJob(j *jobsmanagerv1beta1.ManagedJobDefinition, g 
 
 	// compile labels
 	labels := map[string]string{
-		"jobmanager.raczylo.com/workflow-name": cp.mj.Name,
-		"jobmanager.raczylo.com/group-name":    g.Name,
-		"jobmanager.raczylo.com/job-name":      generatedJobName,
-		"jobmanager.raczylo.com/job-id":        j.Name,
+		LabelWorkflowName: cp.mj.Name,
+		LabelGroupName:    g.Name,
+		LabelJobName:      generatedJobName,
+		LabelJobID:        j.Name,
 	}
 
 	// merge labels with j.Parameters.Labels
@@ -249,7 +256,7 @@ func (cp *connPackage) executeJob(j *jobsmanagerv1beta1.ManagedJobDefinition, g 
 		annotations[k] = v
 	}
 
-	job_handler := kbatch.Job{
+	k8sJob := kbatch.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      generatedJobName,
 			Namespace: cp.mj.Namespace,
@@ -271,10 +278,11 @@ func (cp *connPackage) executeJob(j *jobsmanagerv1beta1.ManagedJobDefinition, g 
 							Name:            generatedJobName,
 							Image:           j.Image,
 							Args:            j.Args,
-							ImagePullPolicy: corev1.PullPolicy(j.CompiledParams.ImagePullPolicy),
+							ImagePullPolicy: getImagePullPolicy(j.CompiledParams.ImagePullPolicy),
 							EnvFrom:         j.CompiledParams.FromEnv,
 							Env:             j.CompiledParams.Env,
 							VolumeMounts:    j.CompiledParams.VolumeMounts,
+							Resources:       getResources(j.CompiledParams.Resources),
 						},
 					},
 					RestartPolicy: corev1.RestartPolicy(j.CompiledParams.RestartPolicy),
@@ -284,19 +292,20 @@ func (cp *connPackage) executeJob(j *jobsmanagerv1beta1.ManagedJobDefinition, g 
 		},
 	}
 
-	getMetaRefForWorkflowData, err := cp.getOwnerReference()
+	ownerRef, err := cp.getOwnerReference()
 	if err != nil {
 		return err
 	}
 
-	job_handler.SetOwnerReferences([]metav1.OwnerReference{getMetaRefForWorkflowData})
+	k8sJob.SetOwnerReferences([]metav1.OwnerReference{ownerRef})
 
-	err = cp.r.Client.Create(cp.ctx, &job_handler)
-	if err != nil || pandati.IsZero(job_handler) {
+	err = cp.r.Client.Create(cp.ctx, &k8sJob)
+	if err != nil || pandati.IsZero(k8sJob) {
 		return err
 	}
 
-	cp.r.Recorder.Eventf(cp.mj, corev1.EventTypeNormal, "Created", "Created job %s", job_handler.Name)
+	cp.r.Recorder.Eventf(cp.mj, corev1.EventTypeNormal, "Created", "Created job %s", k8sJob.Name)
+	RecordJobCreated(cp.mj.Namespace, cp.mj.Name, g.Name)
 	return nil
 }
 
@@ -323,6 +332,6 @@ func (cp *connPackage) checkOverallStatus() {
 		cp.mj.Status = ExecutionStatusRunning
 	}
 	if err := cp.r.Status().Update(cp.ctx, cp.mj); err != nil {
-		log.Log.Error(err, "Failed to update overall status")
+		cp.logger.Error(err, "Failed to update overall status")
 	}
 }

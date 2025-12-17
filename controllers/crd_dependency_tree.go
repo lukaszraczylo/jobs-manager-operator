@@ -5,7 +5,6 @@ import (
 
 	"github.com/lukaszraczylo/pandati"
 	jobsmanagerv1beta1 "raczylo.com/jobs-manager-operator/api/v1beta1"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const (
@@ -155,9 +154,7 @@ func (cp *connPackage) generateDependencyTree() {
 	_, theSame, _ := pandati.CompareStructsReplaced(originalMainJobDefinition, cp.mj)
 	if !theSame {
 		if err := cp.updateCRDStatusDirectly(); err != nil {
-			log.Log.Error(err, "Failed to update CRD status in dependency tree")
+			cp.logger.Error(err, "Failed to update CRD status in dependency tree")
 		}
 	}
-	// fmt.Print(mainTree.Print())
-	// fmt.Printf("Dependency tree: %# v", pretty.Formatter(mainTree))
 }

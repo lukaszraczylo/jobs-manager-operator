@@ -53,16 +53,30 @@ func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
 	var probeAddr string
+	var leaderElectionID string
+	var devMode bool
+
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
+	flag.StringVar(&leaderElectionID, "leader-election-id", "jobsmanager.raczylo.com",
+		"The name of the leader election resource.")
+	flag.BoolVar(&devMode, "dev-mode", false,
+		"Enable development mode with verbose logging (console format).")
+
 	opts := zap.Options{
-		Development: true,
+		Development: devMode,
 	}
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
+
+	// Allow environment variable to override dev mode
+	if os.Getenv("LOG_LEVEL") == "debug" {
+		devMode = true
+		opts.Development = true
+	}
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
@@ -74,7 +88,7 @@ func main() {
 		// Port:                   9443,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "b86e0f00.raczylo.com",
+		LeaderElectionID:       leaderElectionID,
 		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily
 		// when the Manager ends. This requires the binary to immediately end when the
 		// Manager is stopped, otherwise, this setting is unsafe. Setting this significantly

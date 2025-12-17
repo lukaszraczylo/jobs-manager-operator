@@ -14,10 +14,19 @@ spec:
     singular: managedjob
   scope: Namespaced
   versions:
-  - name: v1beta1
+  - additionalPrinterColumns:
+    - jsonPath: .status
+      name: Status
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1beta1
     schema:
       openAPIV3Schema:
-        description: ManagedJob is the Schema for the managedjobs API
+        description: |-
+          ManagedJob is the Schema for the managedjobs API.
+          It defines a workflow consisting of groups of jobs with dependencies.
         properties:
           apiVersion:
             description: |-
@@ -37,37 +46,66 @@ spec:
           metadata:
             type: object
           spec:
-            description: ManagedJobSpec defines the desired state of ManagedJob
+            description: Spec defines the desired workflow configuration
             properties:
               groups:
+                description: Groups is the list of job groups to execute in this workflow
                 items:
+                  description: ManagedJobGroup defines a group of jobs that can be
+                    executed together
                   properties:
                     dependencies:
+                      description: Dependencies lists the groups that must complete
+                        before this group can run
                       items:
+                        description: ManagedJobDependencies defines a dependency relationship
+                          between jobs or groups
                         properties:
                           name:
                             default: ""
+                            description: Name is the identifier of the dependency
+                              (job or group name)
                             type: string
                           status:
+                            description: Status tracks the execution status of the
+                              dependency
+                            enum:
+                            - pending
+                            - running
+                            - succeeded
+                            - failed
+                            - aborted
                             type: string
                         required:
                         - status
                         type: object
                       type: array
                     jobs:
+                      description: Jobs is the list of jobs to execute within this
+                        group
                       items:
+                        description: ManagedJobDefinition defines a single job within
+                          a group
                         properties:
                           args:
+                            description: Args are the command-line arguments to pass
+                              to the container
                             items:
                               type: string
                             type: array
                           compiledParams:
+                            description: CompiledParams contains the merged parameters
+                              from spec, group, and job levels
                             properties:
                               annotations:
                                 additionalProperties:
                                   type: string
+                                description: Annotations are additional annotations
+                                  to apply to job pods
                                 type: object
                               env:
+                                description: Env specifies individual environment
+                                  variables
                                 items:
                                   description: EnvVar represents an environment variable
                                     present in a Container.
@@ -229,6 +267,8 @@ spec:
                                   type: object
                                 type: array
                               fromEnv:
+                                description: FromEnv specifies environment variable
+                                  sources (ConfigMaps, Secrets)
                                 items:
                                   description: EnvFromSource represents the source
                                     of a set of ConfigMaps or Secrets
@@ -277,8 +317,16 @@ spec:
                                   type: object
                                 type: array
                               imagePullPolicy:
+                                description: ImagePullPolicy defines when to pull
+                                  the container image
+                                enum:
+                                - Always
+                                - Never
+                                - IfNotPresent
                                 type: string
                               imagePullSecrets:
+                                description: ImagePullSecrets are references to secrets
+                                  for pulling private images
                                 items:
                                   description: |-
                                     LocalObjectReference contains enough information to let you locate the
@@ -299,13 +347,85 @@ spec:
                               labels:
                                 additionalProperties:
                                   type: string
+                                description: Labels are additional labels to apply
+                                  to job pods
+                                type: object
+                              resources:
+                                description: Resources specifies compute resources
+                                  for the job container
+                                properties:
+                                  claims:
+                                    description: |-
+                                      Claims lists the names of resources, defined in spec.resourceClaims,
+                                      that are used by this container.
+
+                                      This field depends on the
+                                      DynamicResourceAllocation feature gate.
+
+                                      This field is immutable. It can only be set for containers.
+                                    items:
+                                      description: ResourceClaim references one entry
+                                        in PodSpec.ResourceClaims.
+                                      properties:
+                                        name:
+                                          description: |-
+                                            Name must match the name of one entry in pod.spec.resourceClaims of
+                                            the Pod where this field is used. It makes that resource available
+                                            inside a container.
+                                          type: string
+                                        request:
+                                          description: |-
+                                            Request is the name chosen for a request in the referenced claim.
+                                            If empty, everything from the claim is made available, otherwise
+                                            only the result of this request.
+                                          type: string
+                                      required:
+                                      - name
+                                      type: object
+                                    type: array
+                                    x-kubernetes-list-map-keys:
+                                    - name
+                                    x-kubernetes-list-type: map
+                                  limits:
+                                    additionalProperties:
+                                      anyOf:
+                                      - type: integer
+                                      - type: string
+                                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                      x-kubernetes-int-or-string: true
+                                    description: |-
+                                      Limits describes the maximum amount of compute resources allowed.
+                                      More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                                    type: object
+                                  requests:
+                                    additionalProperties:
+                                      anyOf:
+                                      - type: integer
+                                      - type: string
+                                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                      x-kubernetes-int-or-string: true
+                                    description: |-
+                                      Requests describes the minimum amount of compute resources required.
+                                      If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
+                                      otherwise to an implementation-defined value. Requests cannot exceed Limits.
+                                      More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                                    type: object
                                 type: object
                               restartPolicy:
                                 default: OnFailure
+                                description: RestartPolicy defines the pod restart
+                                  policy (Never, OnFailure)
+                                enum:
+                                - Never
+                                - OnFailure
                                 type: string
                               serviceAccount:
+                                description: ServiceAccount is the Kubernetes service
+                                  account to use for job pods
                                 type: string
                               volumeMount:
+                                description: VolumeMounts specifies where to mount
+                                  volumes in containers
                                 items:
                                   description: VolumeMount describes a mounting of
                                     a Volume within a container.
@@ -369,6 +489,8 @@ spec:
                                   type: object
                                 type: array
                               volumes:
+                                description: Volumes specifies volumes to mount in
+                                  job pods
                                 items:
                                   description: Volume represents a named volume in
                                     a pod that may be accessed by any container in
@@ -2311,34 +2433,60 @@ spec:
                                 type: array
                             type: object
                           dependencies:
+                            description: Dependencies lists the jobs that must complete
+                              before this job can run
                             items:
+                              description: ManagedJobDependencies defines a dependency
+                                relationship between jobs or groups
                               properties:
                                 name:
                                   default: ""
+                                  description: Name is the identifier of the dependency
+                                    (job or group name)
                                   type: string
                                 status:
+                                  description: Status tracks the execution status
+                                    of the dependency
+                                  enum:
+                                  - pending
+                                  - running
+                                  - succeeded
+                                  - failed
+                                  - aborted
                                   type: string
                               required:
                               - status
                               type: object
                             type: array
                           image:
+                            description: Image is the container image to run for this
+                              job
                             minLength: 5
                             type: string
                           name:
+                            description: Name is the unique identifier for this job
+                              within the group
                             maxLength: 40
                             pattern: '[a-z0-9-]+'
                             type: string
                           parallel:
                             default: false
+                            description: Parallel indicates if this job can run in
+                              parallel with others in the group
                             type: boolean
                           params:
+                            description: Params contains job-specific parameters that
+                              override group and spec-level params
                             properties:
                               annotations:
                                 additionalProperties:
                                   type: string
+                                description: Annotations are additional annotations
+                                  to apply to job pods
                                 type: object
                               env:
+                                description: Env specifies individual environment
+                                  variables
                                 items:
                                   description: EnvVar represents an environment variable
                                     present in a Container.
@@ -2500,6 +2648,8 @@ spec:
                                   type: object
                                 type: array
                               fromEnv:
+                                description: FromEnv specifies environment variable
+                                  sources (ConfigMaps, Secrets)
                                 items:
                                   description: EnvFromSource represents the source
                                     of a set of ConfigMaps or Secrets
@@ -2548,8 +2698,16 @@ spec:
                                   type: object
                                 type: array
                               imagePullPolicy:
+                                description: ImagePullPolicy defines when to pull
+                                  the container image
+                                enum:
+                                - Always
+                                - Never
+                                - IfNotPresent
                                 type: string
                               imagePullSecrets:
+                                description: ImagePullSecrets are references to secrets
+                                  for pulling private images
                                 items:
                                   description: |-
                                     LocalObjectReference contains enough information to let you locate the
@@ -2570,13 +2728,85 @@ spec:
                               labels:
                                 additionalProperties:
                                   type: string
+                                description: Labels are additional labels to apply
+                                  to job pods
+                                type: object
+                              resources:
+                                description: Resources specifies compute resources
+                                  for the job container
+                                properties:
+                                  claims:
+                                    description: |-
+                                      Claims lists the names of resources, defined in spec.resourceClaims,
+                                      that are used by this container.
+
+                                      This field depends on the
+                                      DynamicResourceAllocation feature gate.
+
+                                      This field is immutable. It can only be set for containers.
+                                    items:
+                                      description: ResourceClaim references one entry
+                                        in PodSpec.ResourceClaims.
+                                      properties:
+                                        name:
+                                          description: |-
+                                            Name must match the name of one entry in pod.spec.resourceClaims of
+                                            the Pod where this field is used. It makes that resource available
+                                            inside a container.
+                                          type: string
+                                        request:
+                                          description: |-
+                                            Request is the name chosen for a request in the referenced claim.
+                                            If empty, everything from the claim is made available, otherwise
+                                            only the result of this request.
+                                          type: string
+                                      required:
+                                      - name
+                                      type: object
+                                    type: array
+                                    x-kubernetes-list-map-keys:
+                                    - name
+                                    x-kubernetes-list-type: map
+                                  limits:
+                                    additionalProperties:
+                                      anyOf:
+                                      - type: integer
+                                      - type: string
+                                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                      x-kubernetes-int-or-string: true
+                                    description: |-
+                                      Limits describes the maximum amount of compute resources allowed.
+                                      More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                                    type: object
+                                  requests:
+                                    additionalProperties:
+                                      anyOf:
+                                      - type: integer
+                                      - type: string
+                                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                      x-kubernetes-int-or-string: true
+                                    description: |-
+                                      Requests describes the minimum amount of compute resources required.
+                                      If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
+                                      otherwise to an implementation-defined value. Requests cannot exceed Limits.
+                                      More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                                    type: object
                                 type: object
                               restartPolicy:
                                 default: OnFailure
+                                description: RestartPolicy defines the pod restart
+                                  policy (Never, OnFailure)
+                                enum:
+                                - Never
+                                - OnFailure
                                 type: string
                               serviceAccount:
+                                description: ServiceAccount is the Kubernetes service
+                                  account to use for job pods
                                 type: string
                               volumeMount:
+                                description: VolumeMounts specifies where to mount
+                                  volumes in containers
                                 items:
                                   description: VolumeMount describes a mounting of
                                     a Volume within a container.
@@ -2640,6 +2870,8 @@ spec:
                                   type: object
                                 type: array
                               volumes:
+                                description: Volumes specifies volumes to mount in
+                                  job pods
                                 items:
                                   description: Volume represents a named volume in
                                     a pod that may be accessed by any container in
@@ -4583,6 +4815,14 @@ spec:
                             type: object
                           status:
                             default: pending
+                            description: Status tracks the execution status of this
+                              job
+                            enum:
+                            - pending
+                            - running
+                            - succeeded
+                            - failed
+                            - aborted
                             type: string
                         required:
                         - image
@@ -4591,19 +4831,28 @@ spec:
                       minItems: 1
                       type: array
                     name:
+                      description: Name is the unique identifier for this group within
+                        the workflow
                       maxLength: 40
                       pattern: '[a-z0-9-]+'
                       type: string
                     parallel:
                       default: false
+                      description: Parallel indicates if this group can run in parallel
+                        with other groups
                       type: boolean
                     params:
+                      description: Params contains group-level parameters that override
+                        spec-level params
                       properties:
                         annotations:
                           additionalProperties:
                             type: string
+                          description: Annotations are additional annotations to apply
+                            to job pods
                           type: object
                         env:
+                          description: Env specifies individual environment variables
                           items:
                             description: EnvVar represents an environment variable
                               present in a Container.
@@ -4761,6 +5010,8 @@ spec:
                             type: object
                           type: array
                         fromEnv:
+                          description: FromEnv specifies environment variable sources
+                            (ConfigMaps, Secrets)
                           items:
                             description: EnvFromSource represents the source of a
                               set of ConfigMaps or Secrets
@@ -4809,8 +5060,16 @@ spec:
                             type: object
                           type: array
                         imagePullPolicy:
+                          description: ImagePullPolicy defines when to pull the container
+                            image
+                          enum:
+                          - Always
+                          - Never
+                          - IfNotPresent
                           type: string
                         imagePullSecrets:
+                          description: ImagePullSecrets are references to secrets
+                            for pulling private images
                           items:
                             description: |-
                               LocalObjectReference contains enough information to let you locate the
@@ -4831,13 +5090,85 @@ spec:
                         labels:
                           additionalProperties:
                             type: string
+                          description: Labels are additional labels to apply to job
+                            pods
+                          type: object
+                        resources:
+                          description: Resources specifies compute resources for the
+                            job container
+                          properties:
+                            claims:
+                              description: |-
+                                Claims lists the names of resources, defined in spec.resourceClaims,
+                                that are used by this container.
+
+                                This field depends on the
+                                DynamicResourceAllocation feature gate.
+
+                                This field is immutable. It can only be set for containers.
+                              items:
+                                description: ResourceClaim references one entry in
+                                  PodSpec.ResourceClaims.
+                                properties:
+                                  name:
+                                    description: |-
+                                      Name must match the name of one entry in pod.spec.resourceClaims of
+                                      the Pod where this field is used. It makes that resource available
+                                      inside a container.
+                                    type: string
+                                  request:
+                                    description: |-
+                                      Request is the name chosen for a request in the referenced claim.
+                                      If empty, everything from the claim is made available, otherwise
+                                      only the result of this request.
+                                    type: string
+                                required:
+                                - name
+                                type: object
+                              type: array
+                              x-kubernetes-list-map-keys:
+                              - name
+                              x-kubernetes-list-type: map
+                            limits:
+                              additionalProperties:
+                                anyOf:
+                                - type: integer
+                                - type: string
+                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                x-kubernetes-int-or-string: true
+                              description: |-
+                                Limits describes the maximum amount of compute resources allowed.
+                                More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                              type: object
+                            requests:
+                              additionalProperties:
+                                anyOf:
+                                - type: integer
+                                - type: string
+                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                x-kubernetes-int-or-string: true
+                              description: |-
+                                Requests describes the minimum amount of compute resources required.
+                                If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
+                                otherwise to an implementation-defined value. Requests cannot exceed Limits.
+                                More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                              type: object
                           type: object
                         restartPolicy:
                           default: OnFailure
+                          description: RestartPolicy defines the pod restart policy
+                            (Never, OnFailure)
+                          enum:
+                          - Never
+                          - OnFailure
                           type: string
                         serviceAccount:
+                          description: ServiceAccount is the Kubernetes service account
+                            to use for job pods
                           type: string
                         volumeMount:
+                          description: VolumeMounts specifies where to mount volumes
+                            in containers
                           items:
                             description: VolumeMount describes a mounting of a Volume
                               within a container.
@@ -4901,6 +5232,7 @@ spec:
                             type: object
                           type: array
                         volumes:
+                          description: Volumes specifies volumes to mount in job pods
                           items:
                             description: Volume represents a named volume in a pod
                               that may be accessed by any container in the pod.
@@ -6815,6 +7147,13 @@ spec:
                       type: object
                     status:
                       default: pending
+                      description: Status tracks the execution status of this group
+                      enum:
+                      - pending
+                      - running
+                      - succeeded
+                      - failed
+                      - aborted
                       type: string
                   required:
                   - jobs
@@ -6823,12 +7162,17 @@ spec:
                 minItems: 1
                 type: array
               params:
+                description: Params contains spec-level parameters that apply to all
+                  jobs
                 properties:
                   annotations:
                     additionalProperties:
                       type: string
+                    description: Annotations are additional annotations to apply to
+                      job pods
                     type: object
                   env:
+                    description: Env specifies individual environment variables
                     items:
                       description: EnvVar represents an environment variable present
                         in a Container.
@@ -6986,6 +7330,8 @@ spec:
                       type: object
                     type: array
                   fromEnv:
+                    description: FromEnv specifies environment variable sources (ConfigMaps,
+                      Secrets)
                     items:
                       description: EnvFromSource represents the source of a set of
                         ConfigMaps or Secrets
@@ -7032,8 +7378,16 @@ spec:
                       type: object
                     type: array
                   imagePullPolicy:
+                    description: ImagePullPolicy defines when to pull the container
+                      image
+                    enum:
+                    - Always
+                    - Never
+                    - IfNotPresent
                     type: string
                   imagePullSecrets:
+                    description: ImagePullSecrets are references to secrets for pulling
+                      private images
                     items:
                       description: |-
                         LocalObjectReference contains enough information to let you locate the
@@ -7054,13 +7408,83 @@ spec:
                   labels:
                     additionalProperties:
                       type: string
+                    description: Labels are additional labels to apply to job pods
+                    type: object
+                  resources:
+                    description: Resources specifies compute resources for the job
+                      container
+                    properties:
+                      claims:
+                        description: |-
+                          Claims lists the names of resources, defined in spec.resourceClaims,
+                          that are used by this container.
+
+                          This field depends on the
+                          DynamicResourceAllocation feature gate.
+
+                          This field is immutable. It can only be set for containers.
+                        items:
+                          description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                          properties:
+                            name:
+                              description: |-
+                                Name must match the name of one entry in pod.spec.resourceClaims of
+                                the Pod where this field is used. It makes that resource available
+                                inside a container.
+                              type: string
+                            request:
+                              description: |-
+                                Request is the name chosen for a request in the referenced claim.
+                                If empty, everything from the claim is made available, otherwise
+                                only the result of this request.
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        type: array
+                        x-kubernetes-list-map-keys:
+                        - name
+                        x-kubernetes-list-type: map
+                      limits:
+                        additionalProperties:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                          x-kubernetes-int-or-string: true
+                        description: |-
+                          Limits describes the maximum amount of compute resources allowed.
+                          More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                        type: object
+                      requests:
+                        additionalProperties:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                          x-kubernetes-int-or-string: true
+                        description: |-
+                          Requests describes the minimum amount of compute resources required.
+                          If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
+                          otherwise to an implementation-defined value. Requests cannot exceed Limits.
+                          More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                        type: object
                     type: object
                   restartPolicy:
                     default: OnFailure
+                    description: RestartPolicy defines the pod restart policy (Never,
+                      OnFailure)
+                    enum:
+                    - Never
+                    - OnFailure
                     type: string
                   serviceAccount:
+                    description: ServiceAccount is the Kubernetes service account
+                      to use for job pods
                     type: string
                   volumeMount:
+                    description: VolumeMounts specifies where to mount volumes in
+                      containers
                     items:
                       description: VolumeMount describes a mounting of a Volume within
                         a container.
@@ -7124,6 +7548,7 @@ spec:
                       type: object
                     type: array
                   volumes:
+                    description: Volumes specifies volumes to mount in job pods
                     items:
                       description: Volume represents a named volume in a pod that
                         may be accessed by any container in the pod.
@@ -9016,7 +9441,9 @@ spec:
                 type: object
               retries:
                 default: 1
-                minimum: 1
+                description: Retries is the number of times to retry failed jobs
+                maximum: 100
+                minimum: 0
                 type: integer
             required:
             - groups
@@ -9024,6 +9451,13 @@ spec:
             type: object
           status:
             default: pending
+            description: Status tracks the overall execution status of the workflow
+            enum:
+            - pending
+            - running
+            - succeeded
+            - failed
+            - aborted
             type: string
         type: object
     served: true
