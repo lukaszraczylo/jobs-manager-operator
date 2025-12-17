@@ -74,15 +74,10 @@ archives:
       - goos: windows
         formats:
           - zip
-    hooks:
-      after:
-        - helm package charts/jobs-manager-operator -d dist/
 
 checksum:
   name_template: 'checksums.txt'
   algorithm: sha256
-  extra_files:
-    - glob: dist/jobs-manager-*.tgz
 
 changelog:
   sort: asc
@@ -101,8 +96,6 @@ release:
   draft: false
   prerelease: auto
   name_template: "v{{.Version}}"
-  extra_files:
-    - glob: dist/jobs-manager-*.tgz
   header: |
     ## Jobs Manager Operator v{{.Version}}
 
