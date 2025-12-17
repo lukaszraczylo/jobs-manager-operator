@@ -1,0 +1,166 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj
+
+version: 2
+
+project_name: jobs-manager-operator
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  # Kubernetes operator manager
+  - id: manager
+    main: .
+    binary: manager
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X main.Version={{.Version}}
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+
+  # kubectl plugin for workflow visualization
+  - id: kubectl-managedjob
+    main: ./cmd/kubectl-managedjob
+    binary: kubectl-managedjob
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X main.Version={{.Version}}
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+
+archives:
+  - id: default
+    formats:
+      - tar.gz
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- .Os }}_
+      {{- .Arch }}
+    files:
+      - LICENSE
+      - README.md
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+
+checksum:
+  name_template: 'checksums.txt'
+  algorithm: sha256
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - Merge pull request
+      - Merge branch
+
+release:
+  github:
+    owner: lukaszraczylo
+    name: jobs-manager-operator
+  draft: false
+  prerelease: auto
+  name_template: "v{{.Version}}"
+  header: |
+    ## Jobs Manager Operator v{{.Version}}
+
+    Kubernetes operator for managing complex multi-job workflows.
+
+    ### Operator Installation
+
+    **Helm:**
+    ```bash
+    helm repo add jobs-manager https://lukaszraczylo.github.io/jobs-manager-operator
+    helm install jobs-manager jobs-manager/jobs-manager-operator
+    ```
+
+    **Docker:**
+    ```bash
+    docker pull ghcr.io/lukaszraczylo/jobs-manager-operator:{{.Version}}
+    ```
+
+    ### kubectl Plugin Installation
+
+    **One-liner (recommended):**
+    ```bash
+    curl -sSL https://raw.githubusercontent.com/lukaszraczylo/jobs-manager-operator/main/scripts/install-plugin.sh | bash
+    ```
+
+    **Manual:**
+    ```bash
+    # Download the archive for your platform from the assets below
+    tar -xzf jobs-manager-operator_{{.Version}}_<os>_<arch>.tar.gz
+    mv kubectl-managedjob /usr/local/bin/
+    chmod +x /usr/local/bin/kubectl-managedjob
+    ```
+
+    ### Plugin Usage
+
+    ```bash
+    kubectl managedjob visualize <workflow-name> -n <namespace>
+    kubectl managedjob visualize <workflow-name> -w  # Watch mode
+    kubectl managedjob list -n <namespace>
+    kubectl managedjob status <workflow-name> -n <namespace>
+    ```
+
+dockers_v2:
+  - images:
+      - "ghcr.io/lukaszraczylo/jobs-manager-operator"
+    tags:
+      - "{{ .Version }}"
+      - "latest"
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    dockerfile: Dockerfile.goreleaser
+
+signs:
+  - cmd: cosign
+    signature: "${artifact}.sigstore.json"
+    args:
+      - sign-blob
+      - "--bundle=${signature}"
+      - "${artifact}"
+      - "--yes"
+    artifacts: checksum
+    output: true
+
+docker_signs:
+  - cmd: cosign
+    artifacts: manifests
+    output: true
+    args:
+      - sign
+      - "${artifact}@${digest}"
+      - "--yes"

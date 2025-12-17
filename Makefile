@@ -66,6 +66,17 @@ test: manifests generate fmt vet envtest ## Run tests.
 build: manifests generate fmt vet ## Build manager binary.
 	go build -o bin/manager main.go
 
+.PHONY: build-plugin
+build-plugin: fmt vet ## Build kubectl-managedjob plugin binary.
+	go build -o bin/kubectl-managedjob ./cmd/kubectl-managedjob
+
+.PHONY: install-plugin
+install-plugin: build-plugin ## Install kubectl-managedjob plugin to GOPATH/bin.
+	cp bin/kubectl-managedjob $(GOBIN)/kubectl-managedjob
+
+.PHONY: build-all
+build-all: build build-plugin ## Build both manager and plugin binaries.
+
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
 	go run ./main.go
@@ -139,7 +150,7 @@ ENVTEST ?= $(LOCALBIN)/setup-envtest
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v3.8.7
-CONTROLLER_TOOLS_VERSION ?= v0.11.1
+CONTROLLER_TOOLS_VERSION ?= v0.17.1
 
 KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
 .PHONY: kustomize

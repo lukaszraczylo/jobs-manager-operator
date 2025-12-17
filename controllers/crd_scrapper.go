@@ -13,20 +13,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-/* Compile parameters from top to the job level */
-type compiledParams struct {
-	FromEnv          []corev1.EnvFromSource
-	Env              []corev1.EnvVar
-	Volumes          []corev1.Volume
-	VolumeMounts     []corev1.VolumeMount
-	ServiceAccount   string
-	RestartPolicy    string
-	ImagePullSecrets []corev1.LocalObjectReference
-	ImagePullPolicy  string
-	Labels           map[string]string
-	Annotations      map[string]string
-}
-
 func (cp *connPackage) compileParameters(params ...jobsmanagerv1beta1.ManagedJobParameters) jobsmanagerv1beta1.ManagedJobParameters {
 	cparams := jobsmanagerv1beta1.ManagedJobParameters{}
 	for _, params := range params {
@@ -236,7 +222,11 @@ func (cp *connPackage) executeJob(j *jobsmanagerv1beta1.ManagedJobDefinition, g 
 		if retries == 0 {
 			return nil
 		}
-		retries32 := int32(retries)
+		// Ensure retries is within int32 bounds (max reasonable value for k8s backoff limit)
+		if retries < 0 || retries > 100 {
+			retries = 1 // default to 1 for invalid values
+		}
+		retries32 := int32(retries) // #nosec G115 - bounds checked above
 		return &retries32
 	}
 
@@ -332,5 +322,7 @@ func (cp *connPackage) checkOverallStatus() {
 	} else {
 		cp.mj.Status = ExecutionStatusRunning
 	}
-	cp.r.Status().Update(cp.ctx, cp.mj)
+	if err := cp.r.Status().Update(cp.ctx, cp.mj); err != nil {
+		log.Log.Error(err, "Failed to update overall status")
+	}
 }

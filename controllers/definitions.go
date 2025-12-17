@@ -10,10 +10,6 @@ const (
 	ExecutionStatusUnknown   string = "unknown"
 )
 
-var (
-	jobOwnerKey = ".metadata.controller"
-)
-
 type (
 	ExecutionStatus string
 

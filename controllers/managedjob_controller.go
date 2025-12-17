@@ -64,7 +64,9 @@ func (r *ManagedJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	cp.generateDependencyTree()
 	_, theSame, _ := pandati.CompareStructsReplaced(originalMainJobDefinition, cp.mj)
 	if !theSame {
-		cp.updateCRDStatusDirectly()
+		if err := cp.updateCRDStatusDirectly(); err != nil {
+			log.Log.Error(err, "Failed to update CRD status")
+		}
 		return ctrl.Result{}, nil
 	}
 	originalMainJobDefinition = cp.mj.DeepCopy()
@@ -75,7 +77,9 @@ func (r *ManagedJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 	_, theSame, _ = pandati.CompareStructsReplaced(originalMainJobDefinition, cp.mj)
 	if !theSame {
-		cp.updateCRDStatusDirectly()
+		if err := cp.updateCRDStatusDirectly(); err != nil {
+			log.Log.Error(err, "Failed to update CRD status")
+		}
 	}
 
 	cp.checkOverallStatus()

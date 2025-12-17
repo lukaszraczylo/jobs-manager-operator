@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"raczylo.com/jobs-manager-operator/api/v1beta1"
 	jobsmanagerv1beta1 "raczylo.com/jobs-manager-operator/api/v1beta1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -15,12 +14,6 @@ import (
 func jobNameGenerator(name ...string) string {
 	// join name parts with "-" and convert to lowercase
 	return strings.ToLower(strings.Join(name, "-"))
-}
-
-type jobStatusUpdate struct {
-	Job             *jobsmanagerv1beta1.ManagedJob
-	PatchedResource string
-	Status          string
 }
 
 type connPackage struct {
@@ -40,7 +33,7 @@ func (cp *connPackage) getOwnerReference() (metav1.OwnerReference, error) {
 	}
 	t := true
 	return metav1.OwnerReference{
-		APIVersion: v1beta1.GroupVersion.String(),
+		APIVersion: jobsmanagerv1beta1.GroupVersion.String(),
 		Kind:       "ManagedJob",
 		Name:       mj.Name,
 		UID:        mj.UID,

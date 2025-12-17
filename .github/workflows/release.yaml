@@ -1,0 +1,26 @@
+name: Release
+
+on:
+  workflow_dispatch:
+  push:
+    paths-ignore:
+      - "**.md"
+      - "charts/**"
+      - "docs/**"
+      - "config/samples/**"
+    branches:
+      - main
+
+permissions:
+  id-token: write
+  contents: write
+  packages: write
+  deployments: write
+
+jobs:
+  release:
+    uses: lukaszraczylo/shared-actions/.github/workflows/go-release.yaml@main
+    with:
+      go-version: "1.21"
+      docker-enabled: true
+    secrets: inherit
