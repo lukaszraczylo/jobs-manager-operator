@@ -1,0 +1,71 @@
+apiVersion: krew.googlecontainertools.github.com/v1alpha2
+kind: Plugin
+metadata:
+  name: managedjob
+spec:
+  version: v0.0.33
+  homepage: https://github.com/lukaszraczylo/jobs-manager-operator
+  shortDescription: Visualize ManagedJob workflows
+  description: |
+    A kubectl plugin for visualizing ManagedJob workflows from the
+    Jobs Manager Operator. It provides ASCII tree visualization of
+    workflow structure and execution status with colored output.
+
+    Features:
+    - Visualize workflow structure as ASCII tree
+    - Color-coded status indicators (green=succeeded, yellow=running, red=failed)
+    - Watch mode for real-time status updates
+    - List all ManagedJobs in a namespace
+    - Quick status summary view
+
+    Usage:
+      kubectl managedjob visualize <name> -n <namespace>
+      kubectl managedjob visualize <name> -w        # Watch mode
+      kubectl managedjob list -n <namespace>
+      kubectl managedjob status <name> -n <namespace>
+
+  caveats: |
+    This plugin requires the Jobs Manager Operator CRD to be installed
+    in your cluster. See https://github.com/lukaszraczylo/jobs-manager-operator
+    for installation instructions.
+
+  platforms:
+    - selector:
+        matchLabels:
+          os: darwin
+          arch: amd64
+      uri: https://github.com/lukaszraczylo/jobs-manager-operator/releases/download/v0.0.33/jobs-manager-operator_0.0.33_darwin_amd64.tar.gz
+      sha256: REPLACE_WITH_ACTUAL_SHA256
+      bin: kubectl-managedjob
+
+    - selector:
+        matchLabels:
+          os: darwin
+          arch: arm64
+      uri: https://github.com/lukaszraczylo/jobs-manager-operator/releases/download/v0.0.33/jobs-manager-operator_0.0.33_darwin_arm64.tar.gz
+      sha256: REPLACE_WITH_ACTUAL_SHA256
+      bin: kubectl-managedjob
+
+    - selector:
+        matchLabels:
+          os: linux
+          arch: amd64
+      uri: https://github.com/lukaszraczylo/jobs-manager-operator/releases/download/v0.0.33/jobs-manager-operator_0.0.33_linux_amd64.tar.gz
+      sha256: REPLACE_WITH_ACTUAL_SHA256
+      bin: kubectl-managedjob
+
+    - selector:
+        matchLabels:
+          os: linux
+          arch: arm64
+      uri: https://github.com/lukaszraczylo/jobs-manager-operator/releases/download/v0.0.33/jobs-manager-operator_0.0.33_linux_arm64.tar.gz
+      sha256: REPLACE_WITH_ACTUAL_SHA256
+      bin: kubectl-managedjob
+
+    - selector:
+        matchLabels:
+          os: windows
+          arch: amd64
+      uri: https://github.com/lukaszraczylo/jobs-manager-operator/releases/download/v0.0.33/jobs-manager-operator_0.0.33_windows_amd64.zip
+      sha256: REPLACE_WITH_ACTUAL_SHA256
+      bin: kubectl-managedjob.exe

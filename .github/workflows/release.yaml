@@ -1,0 +1,82 @@
+name: Release
+
+on:
+  workflow_dispatch:
+  push:
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - "config/samples/**"
+    branches:
+      - main
+
+permissions:
+  id-token: write
+  contents: write
+  packages: write
+  deployments: write
+
+jobs:
+  release:
+    uses: lukaszraczylo/shared-actions/.github/workflows/go-release.yaml@main
+    with:
+      go-version: "1.23"
+      docker-enabled: true
+    secrets: inherit
+
+  publish-helm-chart:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout operator repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get release version
+        id: version
+        run: |
+          VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.0")
+          VERSION=${VERSION#v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.14.0
+
+      - name: Checkout helm-charts repo
+        uses: actions/checkout@v4
+        with:
+          repository: lukaszraczylo/helm-charts
+          ref: gh-pages
+          path: helm-charts
+          token: ${{ secrets.HELM_CHARTS_TOKEN }}
+
+      - name: Update and package Helm chart
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          # Update chart version
+          sed -i "s/^version:.*/version: $VERSION/" charts/jobs-manager-operator/Chart.yaml
+          sed -i "s/^appVersion:.*/appVersion: \"$VERSION\"/" charts/jobs-manager-operator/Chart.yaml
+          sed -i "s/tag:.*/tag: \"$VERSION\"/" charts/jobs-manager-operator/values.yaml
+
+          # Copy updated chart to helm-charts repo
+          cp -R charts/jobs-manager-operator/* helm-charts/charts/jobs-manager-operator/
+
+          # Package chart
+          helm package charts/jobs-manager-operator -d helm-charts/charts/packages/
+
+          # Update index
+          cd helm-charts
+          helm repo index . --url https://lukaszraczylo.github.io/helm-charts/ --merge index.yaml
+
+      - name: Commit and push to helm-charts
+        run: |
+          cd helm-charts
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --staged --quiet || git commit -m "Release jobs-manager ${{ steps.version.outputs.version }}"
+          git push

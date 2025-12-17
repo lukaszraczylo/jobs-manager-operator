@@ -153,8 +153,8 @@ func (cp *connPackage) generateDependencyTree() {
 
 	_, theSame, _ := pandati.CompareStructsReplaced(originalMainJobDefinition, cp.mj)
 	if !theSame {
-		cp.updateCRDStatusDirectly()
+		if err := cp.updateCRDStatusDirectly(); err != nil {
+			cp.logger.Error(err, "Failed to update CRD status in dependency tree")
+		}
 	}
-	// fmt.Print(mainTree.Print())
-	// fmt.Printf("Dependency tree: %# v", pretty.Formatter(mainTree))
 }

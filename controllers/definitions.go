@@ -10,9 +10,16 @@ const (
 	ExecutionStatusUnknown   string = "unknown"
 )
 
-var (
-	jobOwnerKey = ".metadata.controller"
+// Label keys used for job tracking and identification
+const (
+	LabelWorkflowName = "jobmanager.raczylo.com/workflow-name"
+	LabelGroupName    = "jobmanager.raczylo.com/group-name"
+	LabelJobName      = "jobmanager.raczylo.com/job-name"
+	LabelJobID        = "jobmanager.raczylo.com/job-id"
 )
+
+// FinalizerName is the finalizer used to ensure cleanup of child resources
+const FinalizerName = "jobmanager.raczylo.com/finalizer"
 
 type (
 	ExecutionStatus string
