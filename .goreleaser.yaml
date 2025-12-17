@@ -64,7 +64,6 @@ archives:
       {{- .Os }}_
       {{- .Arch }}
     files:
-      - LICENSE
       - README.md
     format_overrides:
       - goos: windows
@@ -135,7 +134,9 @@ release:
     ```
 
 dockers_v2:
-  - images:
+  - ids:
+      - manager
+    images:
       - "ghcr.io/lukaszraczylo/jobs-manager-operator"
     tags:
       - "{{ .Version }}"
@@ -144,6 +145,11 @@ dockers_v2:
       - linux/amd64
       - linux/arm64
     dockerfile: Dockerfile.goreleaser
+    labels:
+      "org.opencontainers.image.title": "{{ .ProjectName }}"
+      "org.opencontainers.image.version": "{{ .Version }}"
+      "org.opencontainers.image.source": "https://github.com/lukaszraczylo/jobs-manager-operator"
+      "org.opencontainers.image.description": "Kubernetes operator for managing complex multi-job workflows"
 
 signs:
   - cmd: cosign
@@ -158,7 +164,7 @@ signs:
 
 docker_signs:
   - cmd: cosign
-    artifacts: manifests
+    artifacts: images
     output: true
     args:
       - sign
