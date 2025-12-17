@@ -2,6 +2,7 @@
 
 - [Kubernetes Jobs Manager Operator](#kubernetes-jobs-manager-operator)
   - [Description](#description)
+  - [Features](#features)
   - [Getting Started](#getting-started)
     - [Installation with helm](#installation-with-helm)
     - [Prerequisites for local runs](#prerequisites-for-local-runs)
@@ -9,17 +10,34 @@
     - [How does it look in practice?](#how-does-it-look-in-practice)
     - [Things to remember](#things-to-remember)
     - [Available params](#available-params)
+    - [Resource limits](#resource-limits)
     - [Kustomization and references](#kustomization-and-references)
     - [Running on the cluster](#running-on-the-cluster)
       - [Manual installation](#manual-installation)
       - [Manually uninstall CRDs](#manually-uninstall-crds)
     - [Manually undeploy controller](#manually-undeploy-controller)
     - [How it works](#how-it-works)
+  - [kubectl Plugin](#kubectl-plugin)
+  - [Observability](#observability)
+    - [Prometheus Metrics](#prometheus-metrics)
+    - [ServiceMonitor](#servicemonitor)
+  - [Configuration](#configuration)
   - [License](#license)
 
 
 ## Description
 This operator is responsible for managing the lifecycle of complicated workflows which consist of multiple jobs and making their management easy, without need for dozens of yaml files and doing magic with ordering.
+
+## Features
+
+- **Workflow orchestration** - Define complex job workflows with dependency management
+- **Parameter inheritance** - DRY configuration with params merged from workflow → group → job levels
+- **Parallel execution** - Run jobs in parallel within groups or sequentially with dependencies
+- **Prometheus metrics** - Built-in observability with metrics for jobs created/succeeded/failed, active jobs count, and reconciliation duration
+- **Resource limits** - Configure CPU and memory limits for job containers
+- **Finalizers** - Proper cleanup of child jobs when ManagedJob resources are deleted
+- **kubectl plugin** - Visualize job dependency graphs directly from the command line
+- **O(1) dependency lookup** - Optimized performance for large workflows
 
 ## Getting Started
 
@@ -197,8 +215,29 @@ params:
     this/works: "true"
   annotations:
     this/works/aswell: "true"
+  resources:
+    limits:
+      cpu: "500m"
+      memory: "256Mi"
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
 ```
 
+### Resource limits
+
+You can configure resource limits for job containers at any level (workflow, group, or job). These follow the standard Kubernetes resource requirements:
+
+```yaml
+params:
+  resources:
+    limits:
+      cpu: "1"
+      memory: "512Mi"
+    requests:
+      cpu: "250m"
+      memory: "128Mi"
+```
 
 ### Kustomization and references
 
@@ -266,9 +305,85 @@ This project aims to follow the Kubernetes [Operator pattern](https://kubernetes
 It uses [Controllers](https://kubernetes.io/docs/concepts/architecture/controller/),
 which provide a reconcile function responsible for synchronizing resources until the desired state is reached on the cluster.
 
+## kubectl Plugin
+
+The operator includes a kubectl plugin for visualizing job dependency graphs. Install it using the provided script:
+
+```sh
+curl -sSL https://raw.githubusercontent.com/lukaszraczylo/jobs-manager-operator/main/scripts/install-plugin.sh | bash
+```
+
+Once installed, you can visualize ManagedJob workflows:
+
+```sh
+# Visualize a ManagedJob workflow as an ASCII tree with status colors
+kubectl managedjob visualize <managedjob-name> -n <namespace>
+
+# Watch mode - continuously update the visualization
+kubectl managedjob visualize <managedjob-name> -w
+
+# Show all ManagedJobs in a namespace
+kubectl managedjob list -n <namespace>
+
+# Show status summary for a specific workflow
+kubectl managedjob status <managedjob-name> -n <namespace>
+```
+
+Status colors in the visualization:
+- **Green**: succeeded
+- **Yellow**: running
+- **Red**: failed
+- **Gray**: pending
+
+## Observability
+
+### Prometheus Metrics
+
+The operator exposes the following Prometheus metrics:
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `managedjob_jobs_created_total` | Counter | namespace, workflow, group | Total number of jobs created |
+| `managedjob_jobs_succeeded_total` | Counter | namespace, workflow, group | Total number of jobs that succeeded |
+| `managedjob_jobs_failed_total` | Counter | namespace, workflow, group | Total number of jobs that failed |
+| `managedjob_active_jobs` | Gauge | namespace, workflow | Current number of active jobs |
+| `managedjob_reconciliation_duration_seconds` | Histogram | namespace, workflow | Time taken for reconciliation |
+
+### ServiceMonitor
+
+If you're using the Prometheus Operator, a ServiceMonitor is included in the Helm chart. Enable it in your values:
+
+```yaml
+serviceMonitor:
+  enabled: true
+  interval: 30s
+  labels: {}
+```
+
+## Configuration
+
+The operator supports the following configuration options:
+
+| Flag | Environment Variable | Description | Default |
+|------|---------------------|-------------|---------|
+| `--leader-election-id` | - | Custom leader election ID | `jobs-manager-operator` |
+| `--dev-mode` | - | Enable development logging mode | `false` |
+| - | `LOG_LEVEL` | Logging level (debug, info, warn, error) | `info` |
+
+Example Helm values for configuration:
+
+```yaml
+controllerManager:
+  manager:
+    leaderElectionId: "my-custom-id"
+    devMode: true
+    env:
+      LOG_LEVEL: "debug"
+```
+
 ## License
 
-Copyright 2023.
+Copyright 2023-2025.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
