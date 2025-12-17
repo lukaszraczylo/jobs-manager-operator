@@ -1,30 +1,10 @@
 controllerManager:
-  kubeRbacProxy:
-    args:
-    - --secure-listen-address=0.0.0.0:8443
-    - --upstream=http://127.0.0.1:8080/
-    - --logtostderr=true
-    - --v=0
-    containerSecurityContext:
-      allowPrivilegeEscalation: false
-      capabilities:
-        drop:
-        - ALL
-    image:
-      repository: gcr.io/kubebuilder/kube-rbac-proxy
-      tag: v0.13.1
-    resources:
-      limits:
-        cpu: 500m
-        memory: 128Mi
-      requests:
-        cpu: 5m
-        memory: 64Mi
   manager:
     # Command line arguments for the manager
     args:
     - --health-probe-bind-address=:8081
-    - --metrics-bind-address=127.0.0.1:8080
+    - --metrics-bind-address=:8443
+    - --metrics-secure
     - --leader-elect
     # Leader election ID - customize for multi-tenant clusters
     leaderElectionId: "jobsmanager.raczylo.com"
@@ -41,7 +21,7 @@ controllerManager:
         - ALL
     image:
       repository: ghcr.io/lukaszraczylo/jobs-manager-operator
-      tag: "0.0.34"
+      tag: ""
     resources:
       limits:
         cpu: 500m

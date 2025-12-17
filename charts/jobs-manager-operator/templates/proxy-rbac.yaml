@@ -3,7 +3,7 @@ kind: ClusterRole
 metadata:
   name: {{ include "chart.fullname" . }}-proxy-role
   labels:
-    app.kubernetes.io/component: kube-rbac-proxy
+    app.kubernetes.io/component: manager
     app.kubernetes.io/created-by: jobs-manager-operator
     app.kubernetes.io/part-of: jobs-manager-operator
   {{- include "chart.labels" . | nindent 4 }}
@@ -26,7 +26,7 @@ kind: ClusterRoleBinding
 metadata:
   name: {{ include "chart.fullname" . }}-proxy-rolebinding
   labels:
-    app.kubernetes.io/component: kube-rbac-proxy
+    app.kubernetes.io/component: manager
     app.kubernetes.io/created-by: jobs-manager-operator
     app.kubernetes.io/part-of: jobs-manager-operator
   {{- include "chart.labels" . | nindent 4 }}
