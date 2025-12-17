@@ -1,10 +1,5 @@
 version: 1
-force:
-  major: 0
-  minor: 0
-  patch: 0
 wording:
-  patch:
   minor:
     - release-minor
   major:
