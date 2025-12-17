@@ -1,0 +1,253 @@
+# Comprehensive ManagedJob Example
+# This example demonstrates all capabilities of the jobs-manager-operator
+#
+# Workflow Overview:
+# 1. setup-group: Creates initial configuration (runs first, sequential)
+# 2. parallel-workers: Multiple parallel jobs that process data
+# 3. aggregation-group: Depends on parallel-workers completion
+# 4. notification-group: Final notification job
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: job-config
+data:
+  APP_NAME: "hello-world-demo"
+  LOG_LEVEL: "info"
+  greeting.txt: |
+    Hello from the jobs-manager-operator!
+    This file was mounted from a ConfigMap.
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: job-secrets
+type: Opaque
+stringData:
+  API_KEY: "demo-secret-key-12345"
+  DATABASE_URL: "postgres://user:pass@localhost/demo"
+---
+apiVersion: jobsmanager.raczylo.com/v1beta1
+kind: ManagedJob
+metadata:
+  name: comprehensive-demo
+  labels:
+    app.kubernetes.io/name: comprehensive-demo
+    app.kubernetes.io/component: demo
+spec:
+  # Retry failed jobs up to 3 times
+  retries: 3
+
+  # Spec-level parameters - applied to ALL jobs (can be overridden)
+  params:
+    # Environment variables applied globally
+    env:
+      - name: GLOBAL_ENV
+        value: "available-in-all-jobs"
+      - name: WORKFLOW_ID
+        value: "demo-workflow-001"
+
+    # Environment variables from ConfigMap (applied to all jobs)
+    fromEnv:
+      - configMapRef:
+          name: job-config
+
+    # Resource defaults for all jobs
+    resources:
+      requests:
+        memory: "64Mi"
+        cpu: "50m"
+      limits:
+        memory: "128Mi"
+        cpu: "100m"
+
+    # Labels and annotations for all job pods
+    labels:
+      managed-by: jobs-manager-operator
+      environment: demo
+    annotations:
+      prometheus.io/scrape: "false"
+
+    # Default restart policy
+    restartPolicy: OnFailure
+
+    # Default image pull policy
+    imagePullPolicy: IfNotPresent
+
+  groups:
+    # =========================================================================
+    # GROUP 1: Setup (Sequential, runs first)
+    # =========================================================================
+    - name: setup-group
+      parallel: false  # Jobs in this group run sequentially
+      jobs:
+        - name: init-job
+          image: busybox:1.36
+          args:
+            - /bin/sh
+            - -c
+            - |
+              echo "=== Initialization Job ==="
+              echo "Workflow ID: $WORKFLOW_ID"
+              echo "Global Env: $GLOBAL_ENV"
+              echo "App Name from ConfigMap: $APP_NAME"
+              echo "Setup complete!"
+
+        - name: validate-config
+          image: busybox:1.36
+          args:
+            - /bin/sh
+            - -c
+            - |
+              echo "=== Validating Configuration ==="
+              echo "Checking environment variables..."
+              test -n "$APP_NAME" && echo "✓ APP_NAME is set"
+              test -n "$LOG_LEVEL" && echo "✓ LOG_LEVEL is set"
+              echo "Configuration validated!"
+          # This job depends on init-job completing successfully
+          dependencies:
+            - name: init-job
+              status: succeeded
+
+    # =========================================================================
+    # GROUP 2: Parallel Workers (runs after setup-group)
+    # =========================================================================
+    - name: parallel-workers
+      parallel: true  # Jobs in this group run in parallel
+      dependencies:
+        - name: setup-group
+          status: succeeded
+
+      # Group-level params - override spec-level for this group
+      params:
+        env:
+          - name: GROUP_NAME
+            value: "parallel-workers"
+          - name: WORKER_MODE
+            value: "parallel"
+
+      jobs:
+        - name: worker-alpha
+          image: busybox:1.36
+          parallel: true
+          args:
+            - /bin/sh
+            - -c
+            - |
+              echo "=== Worker Alpha ==="
+              echo "Processing task A..."
+              echo "Group: $GROUP_NAME"
+              echo "Mode: $WORKER_MODE"
+              sleep 2
+              echo "Worker Alpha completed!"
+
+        - name: worker-beta
+          image: busybox:1.36
+          parallel: true
+          args:
+            - /bin/sh
+            - -c
+            - |
+              echo "=== Worker Beta ==="
+              echo "Processing task B..."
+              sleep 2
+              echo "Worker Beta completed!"
+          # Job-level params - override group and spec level
+          params:
+            env:
+              - name: BETA_SPECIFIC
+                value: "only-in-worker-beta"
+            # Custom resource requirements for this job
+            resources:
+              requests:
+                memory: "32Mi"
+                cpu: "25m"
+              limits:
+                memory: "64Mi"
+                cpu: "50m"
+
+        - name: worker-gamma
+          image: busybox:1.36
+          parallel: true
+          args:
+            - /bin/sh
+            - -c
+            - |
+              echo "=== Worker Gamma ==="
+              echo "Processing task C..."
+              sleep 2
+              echo "Worker Gamma completed!"
+
+    # =========================================================================
+    # GROUP 3: Aggregation (depends on parallel-workers)
+    # =========================================================================
+    - name: aggregation-group
+      parallel: false
+      dependencies:
+        - name: parallel-workers
+          status: succeeded
+
+      # Group-level params with volume mounts
+      params:
+        env:
+          - name: AGGREGATION_MODE
+            value: "combine-results"
+        # Mount ConfigMap as a volume
+        volumes:
+          - name: config-volume
+            configMap:
+              name: job-config
+        volumeMounts:
+          - name: config-volume
+            mountPath: /config
+            readOnly: true
+
+      jobs:
+        - name: aggregate-results
+          image: busybox:1.36
+          args:
+            - /bin/sh
+            - -c
+            - |
+              echo "=== Aggregating Results ==="
+              echo "Mode: $AGGREGATION_MODE"
+              echo ""
+              echo "Reading mounted ConfigMap file:"
+              cat /config/greeting.txt
+              echo ""
+              echo "All worker results aggregated!"
+
+    # =========================================================================
+    # GROUP 4: Notification (final step)
+    # =========================================================================
+    - name: notification-group
+      parallel: false
+      dependencies:
+        - name: aggregation-group
+          status: succeeded
+
+      # Group-level params with secrets
+      params:
+        fromEnv:
+          - secretRef:
+              name: job-secrets
+
+      jobs:
+        - name: send-notification
+          image: busybox:1.36
+          args:
+            - /bin/sh
+            - -c
+            - |
+              echo "=== Sending Notification ==="
+              echo "Workflow completed successfully!"
+              echo ""
+              echo "API Key available: $(test -n "$API_KEY" && echo 'yes' || echo 'no')"
+              echo "Database URL available: $(test -n "$DATABASE_URL" && echo 'yes' || echo 'no')"
+              echo ""
+              echo "Final Summary:"
+              echo "- Workflow ID: $WORKFLOW_ID"
+              echo "- App Name: $APP_NAME"
+              echo "- All groups completed!"
+              echo ""
+              echo "🎉 Demo workflow finished successfully!"

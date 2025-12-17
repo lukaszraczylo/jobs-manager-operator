@@ -1,0 +1,32 @@
+# Quick Start ManagedJob Example
+# A simple example to get started with the jobs-manager-operator
+#
+# This demonstrates:
+# - Basic sequential job execution
+# - Simple environment variables
+# - Job dependencies within a group
+---
+apiVersion: jobsmanager.raczylo.com/v1beta1
+kind: ManagedJob
+metadata:
+  name: hello-world
+spec:
+  retries: 1
+
+  groups:
+    - name: hello-group
+      jobs:
+        - name: say-hello
+          image: busybox:1.36
+          args:
+            - echo
+            - "Hello, World!"
+
+        - name: say-goodbye
+          image: busybox:1.36
+          args:
+            - echo
+            - "Goodbye, World!"
+          dependencies:
+            - name: say-hello
+              status: succeeded

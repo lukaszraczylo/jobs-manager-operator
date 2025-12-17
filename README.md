@@ -7,6 +7,7 @@
     - [Installation with helm](#installation-with-helm)
     - [Prerequisites for local runs](#prerequisites-for-local-runs)
     - [Jobs configuration](#jobs-configuration)
+    - [Examples](#examples)
     - [How does it look in practice?](#how-does-it-look-in-practice)
     - [Things to remember](#things-to-remember)
     - [Available params](#available-params)
@@ -129,6 +130,16 @@ spec:
             - "Hello world!"
           parallel: true
 ```
+
+### Examples
+
+More example manifests are available in the [`config/samples/`](config/samples/) directory:
+
+| Example | Description |
+|---------|-------------|
+| [Quick Start](config/samples/managedjob_quickstart.yaml) | Simple "Hello World" with two sequential jobs |
+| [Parallel Processing](config/samples/managedjob_parallel_example.yaml) | Fan-out/fan-in pattern with parallel job execution |
+| [Comprehensive Demo](config/samples/managedjob_comprehensive_example.yaml) | Full-featured example showcasing all capabilities: ConfigMaps, Secrets, volumes, resource limits, multi-group dependencies, and parameter inheritance |
 
 ### How does it look in practice?
 
@@ -334,6 +345,8 @@ Status colors in the visualization:
 - **Yellow**: running
 - **Red**: failed
 - **Gray**: pending
+
+![kubectl plugin screenshot](public/plugin-screenshot.png)
 
 ## Observability
 

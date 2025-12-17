@@ -1,0 +1,86 @@
+# Parallel Execution ManagedJob Example
+# Demonstrates fan-out/fan-in pattern with parallel jobs
+#
+# Workflow:
+# 1. prepare (single job)
+# 2. process-1, process-2, process-3 (run in parallel)
+# 3. finalize (waits for all parallel jobs)
+---
+apiVersion: jobsmanager.raczylo.com/v1beta1
+kind: ManagedJob
+metadata:
+  name: parallel-demo
+spec:
+  retries: 2
+  params:
+    env:
+      - name: BATCH_ID
+        value: "batch-001"
+
+  groups:
+    # Stage 1: Preparation
+    - name: preparation
+      jobs:
+        - name: prepare
+          image: busybox:1.36
+          args:
+            - /bin/sh
+            - -c
+            - |
+              echo "Preparing batch: $BATCH_ID"
+              echo "Starting parallel processing..."
+
+    # Stage 2: Parallel Processing (fan-out)
+    - name: processing
+      parallel: true
+      dependencies:
+        - name: preparation
+          status: succeeded
+      jobs:
+        - name: process-1
+          image: busybox:1.36
+          parallel: true
+          args:
+            - /bin/sh
+            - -c
+            - |
+              echo "Processing chunk 1..."
+              sleep 3
+              echo "Chunk 1 done!"
+
+        - name: process-2
+          image: busybox:1.36
+          parallel: true
+          args:
+            - /bin/sh
+            - -c
+            - |
+              echo "Processing chunk 2..."
+              sleep 2
+              echo "Chunk 2 done!"
+
+        - name: process-3
+          image: busybox:1.36
+          parallel: true
+          args:
+            - /bin/sh
+            - -c
+            - |
+              echo "Processing chunk 3..."
+              sleep 4
+              echo "Chunk 3 done!"
+
+    # Stage 3: Finalization (fan-in)
+    - name: finalization
+      dependencies:
+        - name: processing
+          status: succeeded
+      jobs:
+        - name: finalize
+          image: busybox:1.36
+          args:
+            - /bin/sh
+            - -c
+            - |
+              echo "All parallel jobs completed!"
+              echo "Batch $BATCH_ID finished successfully."
