@@ -33,5 +33,5 @@ annotations:
       description: Resource limits support for job containers
     - kind: added
       description: Reconciliation backoff/requeue logic
-    - kind: improved
+    - kind: changed
       description: O(1) dependency lookup performance optimization
