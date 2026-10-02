@@ -20,7 +20,7 @@ jobs:
   release:
     uses: lukaszraczylo/shared-actions/.github/workflows/go-release.yaml@main
     with:
-      go-version: "1.23"
+      go-version: "1.25"
       docker-enabled: true
     secrets: inherit
 
