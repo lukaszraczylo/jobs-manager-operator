@@ -366,6 +366,10 @@ func (m *MockStatusWriter) Patch(ctx context.Context, obj client.Object, patch c
 	return m.client.Patch(ctx, obj, patch)
 }
 
+func (m *MockStatusWriter) Apply(ctx context.Context, obj runtime.ApplyConfiguration, opts ...client.SubResourceApplyOption) error {
+	return nil
+}
+
 // Helper to add test data
 func (m *MockClient) AddManagedJob(mj *jobsmanagerv1beta1.ManagedJob) {
 	m.mu.Lock()
