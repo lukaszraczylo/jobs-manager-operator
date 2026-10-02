@@ -311,24 +311,28 @@ func (cp *connPackage) executeJob(j *jobsmanagerv1beta1.ManagedJobDefinition, g 
 
 func (cp *connPackage) checkOverallStatus() {
 	groupsCompleted := 0
+	failedGroup := ""
 	negativeStatuses := []string{ExecutionStatusFailed, ExecutionStatusAborted}
 	for _, group := range cp.mj.Spec.Groups {
 		if group.Status == ExecutionStatusSucceeded {
 			groupsCompleted++
-		} else if pandati.ExistsInSlice(negativeStatuses, group.Status) {
-			cp.mj.Status = ExecutionStatusFailed
-			cp.r.Recorder.Eventf(cp.mj, corev1.EventTypeWarning, "Failure", "Run failed in group %s", group.Name)
-		} else {
-			continue
+		} else if failedGroup == "" && pandati.ExistsInSlice(negativeStatuses, group.Status) {
+			failedGroup = group.Name
 		}
 	}
 
-	if groupsCompleted == len(cp.mj.Spec.Groups) {
+	switch {
+	case failedGroup != "":
+		if cp.mj.Status != ExecutionStatusFailed {
+			cp.r.Recorder.Eventf(cp.mj, corev1.EventTypeWarning, "Failure", "Run failed in group %s", failedGroup)
+		}
+		cp.mj.Status = ExecutionStatusFailed
+	case groupsCompleted == len(cp.mj.Spec.Groups):
 		if cp.mj.Status != ExecutionStatusSucceeded {
-			cp.r.Recorder.Eventf(cp.mj, corev1.EventTypeNormal, "Success", "Run completed successfuly")
+			cp.r.Recorder.Eventf(cp.mj, corev1.EventTypeNormal, "Success", "Run completed successfully")
 		}
 		cp.mj.Status = ExecutionStatusSucceeded
-	} else {
+	default:
 		cp.mj.Status = ExecutionStatusRunning
 	}
 	if err := cp.r.Status().Update(cp.ctx, cp.mj); err != nil {

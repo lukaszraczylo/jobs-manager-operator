@@ -315,10 +315,7 @@ func (s *ScrapperTestSuite) TestCheckOverallStatus_GroupFailed() {
 	cp := s.newConnPackage(mj)
 	cp.checkOverallStatus()
 
-	// Note: Current implementation sets running status after checking failed
-	// This is the actual behavior - the status goes through the failed branch
-	// but then gets overwritten by the final else block
-	s.Equal(ExecutionStatusRunning, mj.Status)
+	s.Equal(ExecutionStatusFailed, mj.Status)
 }
 
 func (s *ScrapperTestSuite) TestCheckOverallStatus_GroupRunning() {

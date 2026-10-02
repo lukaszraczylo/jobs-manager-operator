@@ -25,10 +25,10 @@ func NewClient() (*Client, error) {
 	}
 
 	scheme := runtime.NewScheme()
-	if err := clientgoscheme.AddToScheme(scheme); err != nil {
+	if err = clientgoscheme.AddToScheme(scheme); err != nil {
 		return nil, fmt.Errorf("failed to add client-go scheme: %w", err)
 	}
-	if err := jobsmanagerv1beta1.AddToScheme(scheme); err != nil {
+	if err = jobsmanagerv1beta1.AddToScheme(scheme); err != nil {
 		return nil, fmt.Errorf("failed to add jobsmanager scheme: %w", err)
 	}
 
