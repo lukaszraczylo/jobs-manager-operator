@@ -1,11 +1,10 @@
 package controllers
 
 import (
-	"strings"
-
 	"github.com/lukaszraczylo/pandati"
 	kbatch "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	jobsmanagerv1beta1 "raczylo.com/jobs-manager-operator/api/v1beta1"
@@ -203,7 +202,7 @@ func (cp *connPackage) runPendingJobs() {
 							err := cp.executeJob(job, group)
 							if err != nil {
 								cp.logger.Error(err, "Unable to execute job", "job", job.Name, "group", group.Name)
-								if !strings.Contains(err.Error(), "exists") {
+								if !apierrors.IsAlreadyExists(err) {
 									job.Status = ExecutionStatusFailed
 									group.Status = ExecutionStatusFailed
 									cp.updateDependentJobs(job.Name, ExecutionStatusFailed)
