@@ -1,0 +1,9 @@
+{
+  "packageRules": [
+    {
+      "matchManagers": ["gomod"],
+      "matchPackageNames": ["github.com/google/cel-go"],
+      "allowedVersions": "<0.32.0"
+    }
+  ]
+}
